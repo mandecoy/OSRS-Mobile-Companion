@@ -36,6 +36,8 @@ object GameReminderStore {
     private const val TEARS_ENABLED = "tears_enabled"
     private const val TEARS_LAST_DONE_UTC_DAY = "tears_last_done_utc_day"
     private const val ZAFF_ENABLED = "zaff_enabled"
+    private const val MISC_ENABLED = "misc_enabled"
+    private const val MISC_LAST_DONE = "misc_last_done"
 
     fun tearsEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -44,6 +46,10 @@ object GameReminderStore {
     fun zaffEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(ZAFF_ENABLED, false)
+
+    fun miscellaniaEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(MISC_ENABLED, false)
 
     fun setTearsEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -57,6 +63,29 @@ object GameReminderStore {
             .edit().putBoolean(ZAFF_ENABLED, enabled).apply()
         if (enabled) GameReminderScheduler.scheduleZaff(context)
         else GameReminderScheduler.cancelZaff(context)
+    }
+
+    fun setMiscellaniaEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(MISC_ENABLED, enabled).apply()
+        if (enabled) {
+            if (miscellaniaLastDone(context) == null) markMiscellaniaDoneNow(context)
+            else GameReminderScheduler.scheduleMiscellania(context)
+        } else {
+            GameReminderScheduler.cancelMiscellania(context)
+        }
+    }
+
+    fun markMiscellaniaDoneNow(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putLong(MISC_LAST_DONE, System.currentTimeMillis()).apply()
+        if (miscellaniaEnabled(context)) GameReminderScheduler.scheduleMiscellania(context)
+    }
+
+    fun miscellaniaLastDone(context: Context): Long? {
+        val value = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(MISC_LAST_DONE, 0L)
+        return value.takeIf { it > 0L }
     }
 
     fun markTearsDoneToday(context: Context) {
@@ -79,12 +108,15 @@ object GameReminderStore {
 object GameReminderScheduler {
     private const val TEARS_REQUEST = 7301
     private const val ZAFF_REQUEST = 7302
+    private const val MISC_REQUEST = 7303
     const val TYPE_TEARS = "tears"
     const val TYPE_ZAFF = "zaff"
+    const val TYPE_MISC = "miscellania"
 
     fun restore(context: Context) {
         if (GameReminderStore.tearsEnabled(context)) scheduleTears(context)
         if (GameReminderStore.zaffEnabled(context)) scheduleZaff(context)
+        if (GameReminderStore.miscellaniaEnabled(context)) scheduleMiscellania(context)
     }
 
     fun scheduleTears(context: Context) {
@@ -107,8 +139,15 @@ object GameReminderScheduler {
         schedule(context, ZAFF_REQUEST, TYPE_ZAFF, next.toInstant().toEpochMilli())
     }
 
+    fun scheduleMiscellania(context: Context) {
+        val base = GameReminderStore.miscellaniaLastDone(context) ?: System.currentTimeMillis()
+        val next = base + 24L * 60L * 60L * 1000L
+        schedule(context, MISC_REQUEST, TYPE_MISC, next)
+    }
+
     fun cancelTears(context: Context) = cancel(context, TEARS_REQUEST, TYPE_TEARS)
     fun cancelZaff(context: Context) = cancel(context, ZAFF_REQUEST, TYPE_ZAFF)
+    fun cancelMiscellania(context: Context) = cancel(context, MISC_REQUEST, TYPE_MISC)
 
     private fun schedule(context: Context, requestCode: Int, type: String, atMillis: Long) {
         val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -158,6 +197,15 @@ class GameReminderReceiver : BroadcastReceiver() {
                 )
                 GameReminderScheduler.scheduleZaff(context)
             }
+            GameReminderScheduler.TYPE_MISC -> {
+                if (!GameReminderStore.miscellaniaEnabled(context)) return
+                TimerNotifications.show(
+                    context,
+                    7303,
+                    "Manage Miscellania check-in"
+                )
+                GameReminderStore.markMiscellaniaDoneNow(context)
+            }
         }
     }
 }
@@ -167,6 +215,7 @@ class GameReminderReceiver : BroadcastReceiver() {
 fun GameRemindersCard(context: Context) {
     var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
     var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
+    var miscellaniaEnabled by remember { mutableStateOf(GameReminderStore.miscellaniaEnabled(context)) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
@@ -232,6 +281,36 @@ fun GameRemindersCard(context: Context) {
                         GameReminderStore.setZaffEnabled(context, it)
                     }
                 )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Manage Miscellania", color = Color(0xfff4ead4), fontWeight = FontWeight.Bold)
+                    Text(
+                        "24-hour reminder from your last check-in.",
+                        color = Color(0xffd7c7a4),
+                        fontSize = 11.sp
+                    )
+                }
+                Switch(
+                    checked = miscellaniaEnabled,
+                    onCheckedChange = {
+                        miscellaniaEnabled = it
+                        GameReminderStore.setMiscellaniaEnabled(context, it)
+                    }
+                )
+            }
+
+            if (miscellaniaEnabled) {
+                OutlinedButton(
+                    onClick = { GameReminderStore.markMiscellaniaDoneNow(context) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Manage Miscellania — Done now")
+                }
             }
         }
     }
