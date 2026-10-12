@@ -973,10 +973,13 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     item {
                         OutlinedButton(
                             onClick = {
+                                if (!editingTiles) {
+                                    correctedBoard = solved.board.copyOf()
+                                    previousCorrection = null
+                                }
                                 editingTiles = !editingTiles
                                 fixingGap = false
                                 selectedTilePosition = -1
-                                correctedBoard = solved.board.copyOf()
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -995,24 +998,19 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                     if (selectedTilePosition in 0..24 && other in 0..24 &&
                                         selectedTilePosition != other) {
                                         previousCorrection = correctedBoard.copyOf()
-                                        val updated = correctedBoard.copyOf()
-                                        val temp = updated[selectedTilePosition]
-                                        updated[selectedTilePosition] = updated[other]
-                                        updated[other] = temp
-                                        correctedBoard = updated
+                                        correctedBoard = PuzzleTileMapping.swapPositions(
+                                            correctedBoard, selectedTilePosition, other
+                                        )
                                         selectedTilePosition = -1
                                     }
                                 },
                                 onChooseTile = { targetPosition ->
                                     if (selectedTilePosition in 0..24 && targetPosition in 0..24) {
-                                        val updated = correctedBoard.copyOf()
-                                        val other = updated.indexOf(targetPosition)
-                                        if (other >= 0 && other != selectedTilePosition) {
+                                        if (correctedBoard[selectedTilePosition] != targetPosition) {
                                             previousCorrection = correctedBoard.copyOf()
-                                            val old = updated[selectedTilePosition]
-                                            updated[selectedTilePosition] = targetPosition
-                                            updated[other] = old
-                                            correctedBoard = updated
+                                            correctedBoard = PuzzleTileMapping.assignTile(
+                                                correctedBoard, selectedTilePosition, targetPosition
+                                            )
                                         }
                                         selectedTilePosition = -1
                                     }
