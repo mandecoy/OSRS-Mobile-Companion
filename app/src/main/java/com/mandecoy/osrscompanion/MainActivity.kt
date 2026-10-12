@@ -467,6 +467,7 @@ private fun TimersScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item { ExactAlarmCard(context) }
+            item { GameRemindersCard(context) }
 
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
