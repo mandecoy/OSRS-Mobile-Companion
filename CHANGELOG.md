@@ -2,6 +2,17 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.10
+
+### Puzzle tile recognition and manual correction
+- Replaced the old "tap the solved image" correction interaction that could make the desired tile difficult or impossible to select.
+- Tap ANY of the 25 positions in the original screenshot and then tap another position to swap their inferred tile numbers.
+- Alternatively choose the selected tile's correct SOLVED position from 1-24 or E (EMPTY) buttons; swaps maintain 25 unique tile IDs.
+- Added Undo last swap and Reset tiles. Edits are retained if recalculation fails.
+- Recognition with impossible inversion parity is no longer silently "fixed" by swapping arbitrary guessed tiles. Instead, the review screen blocks the solution until the player corrects the mismatched assignments.
+- Added JVM regression tests for all 25 selectable tiles, blank-square corrections and tile swaps.
+- RuneLite can read exact puzzle tile IDs from the client; screenshot-based mobile matching must be visually verified.
+
 ## 0.5.9
 
 ### Floating timer usability
