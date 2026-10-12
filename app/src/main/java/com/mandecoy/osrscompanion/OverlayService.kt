@@ -80,6 +80,16 @@ object FloatingPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean("repeat", false)
 
+    // Persist the player's chosen popout size across timer restarts.
+    fun compactTimer(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean("timer_compact", false)
+
+    fun setCompactTimer(context: Context, compact: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("timer_compact", compact).apply()
+    }
+
     fun save(context: Context, name: String, seconds: Long, repeat: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
@@ -131,6 +141,9 @@ class FloatingOverlayService : Service() {
     private var timerView: LinearLayout? = null
     private var timerParams: WindowManager.LayoutParams? = null
     private var countdownText: TextView? = null
+    private var compactCountdownText: TextView? = null
+    private var compactTimerPanel: LinearLayout? = null
+    private var mediumTimerPanel: LinearLayout? = null
     private var timerTitleText: TextView? = null
     private var pauseButton: AndroidButton? = null
     private var timerStatusText: TextView? = null
@@ -471,109 +484,41 @@ class FloatingOverlayService : Service() {
         handler.post(timerTick)
     }
 
-    /** Preserve a non-focusable window: no EditText or keyboard over OSRS. */
+    /**
+     * Two tiny, non-focusable OSRS overlays. Medium: compact controls and an
+     * optional editor. Compact: only the live clock, eye icon and drag surface.
+     * Switching views never recreates a timer or updates timerEndAt.
+     */
     private fun createTimerOverlay() {
-        val screenWidth = resources.displayMetrics.widthPixels
-        val panelWidth = minOf(dp(292), screenWidth - dp(24)).coerceAtLeast(dp(220))
-        val savedPosition = FloatingPrefs.timerPosition(this)
-        val x = savedPosition.first.coerceIn(0, (screenWidth - panelWidth).coerceAtLeast(0))
-        val y = savedPosition.second.coerceIn(0, (resources.displayMetrics.heightPixels - dp(220)).coerceAtLeast(0))
-        val params = overlayParams(panelWidth, WindowManager.LayoutParams.WRAP_CONTENT, x, y)
-
+        val displayWidth = resources.displayMetrics.widthPixels
+        val mediumWidth = minOf(dp(192), displayWidth - dp(16))
+        val compactWidth = minOf(dp(142), displayWidth - dp(16))
+        var compact = FloatingPrefs.compactTimer(this)
+        val saved = FloatingPrefs.timerPosition(this)
+        val panelWidth = if (compact) compactWidth else mediumWidth
+        val params = overlayParams(
+            panelWidth, WindowManager.LayoutParams.WRAP_CONTENT,
+            saved.first.coerceIn(0, (displayWidth - panelWidth).coerceAtLeast(0)),
+            saved.second.coerceIn(
+                0, (resources.displayMetrics.heightPixels - dp(250)).coerceAtLeast(0)
+            )
+        )
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(10), dp(12), dp(12))
-            // Opaque: text remains readable above RuneScape's moving scenery.
-            background = roundedBackground(0xff211c17.toInt(), 16f)
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = roundedBackground(0xff211c17.toInt(), 12f)
         }
 
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val title = TextView(this).apply {
-            text = timerLabel.uppercase()
-            setTextColor(AndroidColor.WHITE)
-            textSize = 15f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END
-        }
-        timerTitleText = title
-        header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
-        val dragHandle = TextView(this).apply {
-            text = "≡  DRAG"
-            setTextColor(0xffffcf72.toInt())
-            textSize = 12f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(dp(8), 0, dp(4), 0)
-            background = roundedBackground(0xff3b3229.toInt(), 8f)
-        }
-        header.addView(dragHandle, LinearLayout.LayoutParams(dp(94), dp(38)))
-        root.addView(header)
-
-        val time = TextView(this).apply {
-            text = formatMillis(timerDuration)
-            setTextColor(0xffffc653.toInt())
-            textSize = 40f
-            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
-            gravity = Gravity.CENTER
-            includeFontPadding = false
-            setPadding(dp(2), dp(4), dp(2), dp(4))
-        }
-        root.addView(time, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, dp(66)
-        ))
-        countdownText = time
-
-        val status = TextView(this).apply {
-            setTextColor(0xfff5e7d1.toInt())
-            textSize = 12.5f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(8))
-        }
-        timerStatusText = status
-        root.addView(status)
-
-        fun actionRow(vararg buttons: AndroidButton): LinearLayout {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-            }
-            buttons.forEach { button ->
-                row.addView(button, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
-                    leftMargin = dp(3)
-                    rightMargin = dp(3)
-                    bottomMargin = dp(6)
-                })
-            }
-            return row
-        }
-        val pause = overlayButton("Pause") {
-            if (timerPaused) resumeTimer() else pauseTimer()
-        }
-        pauseButton = pause
-        root.addView(actionRow(pause, overlayButton("Restart") { restartTimer() }))
-
-        val adjustmentArea = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-            setPadding(dp(4), dp(5), dp(4), dp(5))
-            background = roundedBackground(0xff30271e.toInt(), 11f)
-        }
-        timerEditPanel = adjustmentArea
-
-        fun keepTimerOnScreen() {
+        // All mode updates are done in-place in the same WindowManager window.
+        fun fitWindow() {
             root.post {
                 if (timerView !== root) return@post
-                val maxY = (resources.displayMetrics.heightPixels - root.height - dp(24))
-                    .coerceAtLeast(0)
-                params.y = params.y.coerceIn(0, maxY)
+                params.width = if (compact) compactWidth else mediumWidth
                 params.x = params.x.coerceIn(
-                    0, (resources.displayMetrics.widthPixels - panelWidth).coerceAtLeast(0)
+                    0, (resources.displayMetrics.widthPixels - params.width).coerceAtLeast(0)
+                )
+                params.y = params.y.coerceIn(
+                    0, (resources.displayMetrics.heightPixels - root.height - dp(20)).coerceAtLeast(0)
                 )
                 try {
                     windowManager.updateViewLayout(root, params)
@@ -581,81 +526,199 @@ class FloatingOverlayService : Service() {
                 } catch (_: Exception) {}
             }
         }
-        val toggle = overlayButton("Adjust Time ▾") {
-            adjustmentArea.visibility =
-                if (adjustmentArea.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-            keepTimerOnScreen()
+        val compactPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        root.addView(actionRow(
-            toggle,
-            overlayButton("Stop Timer") {
-                stopTimerOverlay()
-                maybeStopService()
-            }
+        val mediumPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(3), dp(2), dp(3), dp(3))
+        }
+
+        fun toggleSize() {
+            compact = !compact
+            FloatingPrefs.setCompactTimer(this, compact)
+            compactPanel.visibility = if (compact) View.VISIBLE else View.GONE
+            mediumPanel.visibility = if (compact) View.GONE else View.VISIBLE
+            fitWindow()
+        }
+        val compactClock = TextView(this).apply {
+            text = formatMillis(timerDuration)
+            setTextColor(0xffffc653.toInt())
+            textSize = 24f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
+        compactCountdownText = compactClock
+        compactPanel.addView(compactClock, LinearLayout.LayoutParams(0, dp(42), 1f))
+        val openEye = overlayButton("👁") { toggleSize() }.apply {
+            textSize = 19f
+            contentDescription = "Show medium timer controls"
+        }
+        compactPanel.addView(openEye, LinearLayout.LayoutParams(dp(37), dp(40)))
+
+        val header = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+        }
+        val title = TextView(this).apply {
+            text = timerLabel
+            textSize = 11.5f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(AndroidColor.WHITE)
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        timerTitleText = title
+        header.addView(title, LinearLayout.LayoutParams(0, dp(27), 1f))
+        val closeEye = overlayButton("👁") { toggleSize() }.apply {
+            textSize = 18f
+            contentDescription = "Collapse timer to clock only"
+        }
+        header.addView(closeEye, LinearLayout.LayoutParams(dp(38), dp(30)))
+        mediumPanel.addView(header)
+
+        val largeClock = TextView(this).apply {
+            text = formatMillis(timerDuration)
+            setTextColor(0xffffc653.toInt())
+            textSize = 29f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            includeFontPadding = false
+        }
+        countdownText = largeClock
+        mediumPanel.addView(largeClock, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(43)
+        ))
+        val status = TextView(this).apply {
+            setTextColor(0xfff5e7d1.toInt())
+            textSize = 10f
+            gravity = Gravity.CENTER
+        }
+        timerStatusText = status
+        mediumPanel.addView(status, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(21)
         ))
 
-        val help = TextView(this).apply {
-            text = "CHANGE REMAINING TIME"
+        fun row(vararg buttons: AndroidButton): LinearLayout {
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            for (button in buttons) {
+                button.textSize = 10.5f
+                container.addView(button, LinearLayout.LayoutParams(0, dp(31), 1f).apply {
+                    leftMargin = dp(2)
+                    rightMargin = dp(2)
+                    bottomMargin = dp(4)
+                })
+            }
+            return container
+        }
+
+        val pause = overlayButton("Pause") {
+            if (timerPaused) resumeTimer() else pauseTimer()
+        }
+        pauseButton = pause
+        mediumPanel.addView(row(pause, overlayButton("Restart") { restartTimer() }))
+
+        val editor = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(3), dp(5), dp(3), dp(2))
+            background = roundedBackground(0xff30271e.toInt(), 9f)
+        }
+        timerEditPanel = editor
+        val editToggle = overlayButton("Edit + / −") {
+            editor.visibility = if (editor.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            fitWindow()
+        }
+        mediumPanel.addView(row(
+            editToggle,
+            overlayButton("Stop") { stopTimerOverlay(); maybeStopService() }
+        ))
+
+        val editCaption = TextView(this).apply {
+            text = "CHANGE TIME"
+            textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(0xffffcf72.toInt())
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(dp(2), dp(3), dp(2), dp(6))
         }
-        adjustmentArea.addView(help)
-        adjustmentArea.addView(actionRow(
+        editor.addView(editCaption, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(17)
+        ))
+        editor.addView(row(
             overlayButton("−1 min") { adjustTimerBy(-60_000L) },
             overlayButton("+1 min") { adjustTimerBy(60_000L) }
         ))
-        adjustmentArea.addView(actionRow(
+        editor.addView(row(
             overlayButton("−10 sec") { adjustTimerBy(-10_000L) },
             overlayButton("+10 sec") { adjustTimerBy(10_000L) }
         ))
-
         val presetCaption = TextView(this).apply {
-            text = "START A NEW COUNTDOWN"
+            text = "NEW COUNTDOWN"
+            textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(0xffffcf72.toInt())
-            textSize = 12f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            setPadding(dp(2), dp(3), dp(2), dp(6))
         }
-        adjustmentArea.addView(presetCaption)
-        adjustmentArea.addView(actionRow(
-            overlayButton("1 min") { setTimerPreset(60L) },
-            overlayButton("5 min") { setTimerPreset(300L) },
-            overlayButton("10 min") { setTimerPreset(600L) },
-            overlayButton("15 min") { setTimerPreset(900L) }
+        editor.addView(presetCaption, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(17)
         ))
-        val repeatButton = overlayButton("Repeat") {
+        editor.addView(row(
+            overlayButton("1m") { setTimerPreset(60L) },
+            overlayButton("5m") { setTimerPreset(300L) }
+        ))
+        editor.addView(row(
+            overlayButton("10m") { setTimerPreset(600L) },
+            overlayButton("15m") { setTimerPreset(900L) }
+        ))
+        val repeatAction = overlayButton("Toggle Repeat") {
             timerRepeat = !timerRepeat
             saveActiveTimerSettings()
             refreshTimerDisplay()
         }
+        repeatAction.textSize = 11f
+        editor.addView(repeatAction, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(32)
+        ))
         timerSettingText = TextView(this).apply {
             gravity = Gravity.CENTER
             setTextColor(0xfff5e7d1.toInt())
-            textSize = 12f
-            setPadding(dp(2), dp(4), dp(2), dp(5))
+            textSize = 10f
         }
-        adjustmentArea.addView(repeatButton,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
-        adjustmentArea.addView(timerSettingText)
+        editor.addView(timerSettingText, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(20)
+        ))
+        mediumPanel.addView(editor)
+        root.addView(compactPanel)
+        root.addView(mediumPanel)
 
-        root.addView(adjustmentArea)
-
-        makeDraggable(dragHandle, params, onMoveFinished = {
+        compactPanel.visibility = if (compact) View.VISIBLE else View.GONE
+        mediumPanel.visibility = if (compact) View.GONE else View.VISIBLE
+        // Both clock and medium title are drag handles; only the eye consumes
+        // the tap used to change size. No IME, Activity or focus transfer.
+        makeDraggable(compactClock, params, onMoveFinished = {
+            FloatingPrefs.saveTimerPosition(this, params.x, params.y)
+        }, onTap = {})
+        makeDraggable(title, params, onMoveFinished = {
             FloatingPrefs.saveTimerPosition(this, params.x, params.y)
         }, onTap = {})
 
         timerView = root
         timerParams = params
+        compactTimerPanel = compactPanel
+        mediumTimerPanel = mediumPanel
         try {
             windowManager.addView(root, params)
         } catch (_: Exception) {
             timerView = null
             timerParams = null
+            compactTimerPanel = null
+            mediumTimerPanel = null
             countdownText = null
+            compactCountdownText = null
             timerTitleText = null
             pauseButton = null
             timerStatusText = null
@@ -665,21 +728,32 @@ class FloatingOverlayService : Service() {
     }
 
     private fun showTimerEditor() {
+        val view = timerView ?: return
+        compactTimerPanel?.visibility = View.GONE
+        mediumTimerPanel?.visibility = View.VISIBLE
+        FloatingPrefs.setCompactTimer(this, false)
         timerEditPanel?.visibility = View.VISIBLE
-        timerView?.post {
-            val view = timerView ?: return@post
-            val params = timerParams ?: return@post
-            params.y = params.y.coerceIn(
-                0, (resources.displayMetrics.heightPixels - view.height - dp(24)).coerceAtLeast(0)
+        val params = timerParams ?: return
+        params.width = minOf(dp(192), resources.displayMetrics.widthPixels - dp(16))
+        view.post {
+            if (timerView !== view) return@post
+            params.x = params.x.coerceIn(
+                0, (resources.displayMetrics.widthPixels - params.width).coerceAtLeast(0)
             )
-            try { windowManager.updateViewLayout(view, params) } catch (_: Exception) {}
-            FloatingPrefs.saveTimerPosition(this, params.x, params.y)
+            params.y = params.y.coerceIn(
+                0, (resources.displayMetrics.heightPixels - view.height - dp(20)).coerceAtLeast(0)
+            )
+            try {
+                windowManager.updateViewLayout(view, params)
+                FloatingPrefs.saveTimerPosition(this, params.x, params.y)
+            } catch (_: Exception) {}
         }
     }
 
     private fun refreshTimerDisplay() {
         timerTitleText?.text = timerLabel.uppercase()
         countdownText?.text = formatMillis(timerRemaining)
+        compactCountdownText?.text = formatMillis(timerRemaining)
         pauseButton?.text = if (timerPaused) "Resume" else "Pause"
         val state = if (timerPaused) "PAUSED" else "RUNNING"
         timerStatusText?.text = "$state   •   " + if (timerRepeat) "REPEAT ON" else "ONE TIME"
@@ -748,6 +822,9 @@ class FloatingOverlayService : Service() {
         timerView = null
         timerParams = null
         countdownText = null
+        compactCountdownText = null
+        compactTimerPanel = null
+        mediumTimerPanel = null
         timerTitleText = null
         pauseButton = null
         timerStatusText = null
@@ -978,7 +1055,7 @@ fun FloatingToolsScreen(nav: NavHostController) {
                     ) {
                         Text("FLOATING TIMER", color = FloatGold, fontWeight = FontWeight.Bold)
                         Text(
-                            "Tap Adjust Time on the floating timer to change the remaining minutes/seconds, choose a preset, or turn Repeat on/off without leaving OSRS. Drag by its header to reposition it.",
+                            "The eye icon switches between a tiny clock-only timer and a medium timer with Pause, Restart, Stop and a small Edit panel. No focus is taken from OSRS.",
                             color = FloatParchment
                         )
                         OutlinedTextField(
