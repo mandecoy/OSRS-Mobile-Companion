@@ -51,6 +51,9 @@ fun iconUrlForAction(action: QuickAction): String {
     return when (action.route) {
         "puzzle", "web/puzzle" -> osrsWikiImage("Puzzle_box_zulrah.png")
         "lightbox", "web/light" -> osrsWikiImage("Light_box.png")
+        "ge_tools" -> osrsWikiImage("Grand_Exchange_Clerk.png")
+        "portfolio" -> osrsWikiImage("Platinum_token.png")
+        "notepad" -> osrsWikiImage("Spell_scroll.png")
         "web/prices" -> osrsWikiImage("Coins_10000.png")
         "web/wiki" -> osrsWikiImage("Old School RuneScape Wiki logo (alternate).png")
         "web/wise" -> osrsWikiImage("Wise_Old_Man.png")
@@ -84,7 +87,7 @@ fun WikiIcon(
                         instanceFollowRedirects = true
                         connectTimeout = 8000
                         readTimeout = 10000
-                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.4.0")
+                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.5.1")
                     }
                     val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) }
                     connection.disconnect()
