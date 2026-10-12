@@ -4,10 +4,13 @@ import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -19,6 +22,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,6 +67,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -117,7 +123,8 @@ private val WebTools = mapOf(
     "dps" to WebTool("DPS Calculator", "https://tools.runescape.wiki/osrs-dps/", "Compare gear, weapons, attack styles, and damage output."),
     "puzzle" to WebTool("Puzzle Box Solver", "https://osrs-puzzle-box-solver.vercel.app/", "Upload your puzzle-box screenshot and follow the moves in groups of five."),
     "light" to WebTool("Light Box Solver", "https://osrs-lightbox-solver.fletom.com/", "Solve master-clue light boxes."),
-    "quests" to WebTool("Quests & Diaries", "https://oldschool.runescape.wiki/w/Quest_List", "Quest and achievement-diary references."),
+    "quests" to WebTool("Quests", "https://oldschool.runescape.wiki/w/Quests", "Quest list, requirements, and guides."),
+    "diaries" to WebTool("Achievement Diaries", "https://oldschool.runescape.wiki/w/Achievement_Diary", "Achievement Diary requirements and rewards."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
@@ -125,7 +132,7 @@ data class Tool(val title: String, val subtitle: String, val route: String, val 
 
 private val Tools = listOf(
     Tool("Timers", "AFK + farming runs", "timers", "⏱️"),
-    Tool("Puzzle Box", "Screenshot solver", "web/puzzle", "🧩"),
+    Tool("Puzzle Box", "Screenshot solver", "puzzle", "🧩"),
     Tool("Light Box", "Master clue solver", "web/light", "💡"),
     Tool("GE Prices", "Live market prices", "web/prices", "🪙"),
     Tool("OSRS Wiki", "Search anything", "web/wiki", "📖"),
@@ -133,7 +140,8 @@ private val Tools = listOf(
     Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", "🌠"),
     Tool("Skill Calculators", "All skills", "web/skills", "📊"),
     Tool("DPS Calculator", "Combat damage calculator", "web/dps", "⚔️"),
-    Tool("Quests & Diaries", "Guides + requirements", "web/quests", "📜"),
+    Tool("Quests", "Quest list + requirements", "web/quests", "📜"),
+    Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", "🏆"),
     Tool("Clue Helper", "Treasure trail references", "web/clues", "🗺️"),
     Tool("Quick Widgets", "Customize four shortcuts", "quick", "⚙️"),
     Tool("About", "Source + privacy", "about", "ℹ️")
@@ -152,10 +160,12 @@ private val QuickChoices = listOf(
     QuickAction("afk10", "AFK 10m", "💤", seconds = 600),
     QuickAction("herb", "Herb", "🌿", seconds = 80 * 60),
     QuickAction("bird", "Birdhouse", "🐦", seconds = 50 * 60),
-    QuickAction("puzzle", "Puzzle", "🧩", route = "web/puzzle"),
+    QuickAction("puzzle", "Puzzle", "🧩", route = "puzzle"),
     QuickAction("stars", "Stars", "🌠", route = "web/stars"),
     QuickAction("wiki", "Wiki", "📖", route = "web/wiki"),
     QuickAction("dps", "DPS", "⚔️", route = "web/dps"),
+    QuickAction("quests", "Quests", "📜", route = "web/quests"),
+    QuickAction("diaries", "Diaries", "🏆", route = "web/diaries"),
     QuickAction("timers", "Timers", "⏱️", route = "timers")
 )
 
@@ -236,12 +246,13 @@ private fun CompanionApp() {
             composable("home") { HomeScreen(nav) }
             composable("timers") { TimersScreen(nav) }
             composable("quick") { QuickActionsScreen(nav) }
+            composable("puzzle") { NativePuzzleScreen(nav) }
             composable("about") { AboutScreen(nav) }
             composable("web/{key}") { entry ->
                 val key = entry.arguments?.getString("key") ?: "wiki"
                 val tool = WebTools[key] ?: WebTools.getValue("wiki")
                 if (key == "puzzle") {
-                    PuzzleBrowserScreen(nav, tool)
+                    NativePuzzleScreen(nav)
                 } else {
                     WebToolScreen(nav, tool)
                 }
@@ -601,6 +612,22 @@ private fun ExactAlarmCard(context: Context) {
 private fun QuickActionsScreen(nav: NavHostController) {
     val context = LocalContext.current
     var current by remember { mutableStateOf(QuickActionStore.load(context)) }
+    var customLabel by remember { mutableStateOf("Custom timer") }
+    var customMinutes by remember { mutableStateOf("5") }
+    var customSeconds by remember { mutableStateOf("0") }
+
+    fun customTimerAction(): QuickAction {
+        val minutes = (customMinutes.toLongOrNull() ?: 0L).coerceIn(0L, 30L)
+        val seconds = (customSeconds.toLongOrNull() ?: 0L).coerceIn(0L, 59L)
+        val total = (minutes * 60L + seconds).coerceIn(1L, 1800L)
+        val name = customLabel.trim().ifBlank { "Timer " + formatSeconds(total) }
+        return QuickAction(
+            id = "quick_custom_" + total + "_" + name,
+            label = name,
+            icon = "💤",
+            seconds = total
+        )
+    }
 
     Screen(nav, "Edit Quick Widgets") { padding ->
         LazyColumn(
@@ -610,9 +637,71 @@ private fun QuickActionsScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Choose four tools or preset timers for the top row. Custom timer values can be pinned directly from the Timers screen.",
+                    "Choose four tools or timers for the top row.",
                     color = Parchment
                 )
+            }
+
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("💤 CUSTOM TIMER WIDGET", color = RuneGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Set the exact timer you want, then pin it to one of the four quick-widget slots.",
+                            color = Parchment,
+                            fontSize = 12.sp
+                        )
+                        OutlinedTextField(
+                            value = customLabel,
+                            onValueChange = { customLabel = it.take(20) },
+                            label = { Text("Widget name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = customMinutes,
+                                onValueChange = { customMinutes = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Minutes") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = customSeconds,
+                                onValueChange = { customSeconds = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Seconds") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            (1..4).forEach { slot ->
+                                Button(
+                                    onClick = {
+                                        QuickActionStore.save(context, slot, customTimerAction())
+                                        current = QuickActionStore.load(context)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = RuneGold,
+                                        contentColor = Color.Black
+                                    )
+                                ) {
+                                    Text("Slot " + slot, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             items(4) { index ->
@@ -650,6 +739,215 @@ private fun QuickActionsScreen(nav: NavHostController) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NativePuzzleScreen(nav: NavHostController) {
+    val context = LocalContext.current
+    val handler = remember { Handler(Looper.getMainLooper()) }
+    var analysis by remember { mutableStateOf<PuzzleAnalysis?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableIntStateOf(0) }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        analysis = null
+        error = null
+        loading = true
+        page = 0
+
+        Thread {
+            val bitmap = try {
+                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+            } catch (_: Exception) {
+                null
+            }
+
+            val result = if (bitmap != null) {
+                try { PuzzleEngine.analyse(context.applicationContext, bitmap) } catch (_: Exception) { null }
+            } else null
+
+            handler.post {
+                loading = false
+                if (result == null) {
+                    error = "I couldn't reliably read that puzzle. Make sure the whole open 5×5 puzzle box is visible in the screenshot and try again."
+                } else {
+                    analysis = result
+                }
+            }
+        }.start()
+    }
+
+    Screen(nav, "Puzzle Box Solver") { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text(
+                    "Upload the screenshot from OSRS. The app reads that exact 5×5 layout and calculates a solution. The puzzle preview below is intentionally not interactive.",
+                    color = Parchment
+                )
+            }
+
+            item {
+                Button(
+                    onClick = { picker.launch("image/*") },
+                    enabled = !loading,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = RuneGold, contentColor = Color.Black)
+                ) {
+                    Text(if (loading) "Reading puzzle..." else "Upload Puzzle Screenshot")
+                }
+            }
+
+            error?.let { message ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xff4a302a)),
+                        border = BorderStroke(1.dp, RuneGoldDark)
+                    ) {
+                        Text(message, color = TextLight, modifier = Modifier.padding(12.dp))
+                    }
+                }
+            }
+
+            analysis?.let { solved ->
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xff171411)),
+                        border = BorderStroke(2.dp, RuneGoldDark)
+                    ) {
+                        Image(
+                            bitmap = solved.preview.asImageBitmap(),
+                            contentDescription = "Uploaded Puzzle Box",
+                            modifier = Modifier.fillMaxWidth().height(300.dp).padding(8.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+
+                item {
+                    Text(
+                        solved.puzzleName + " Puzzle Box",
+                        color = RuneGold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (solved.moves.isEmpty()) {
+                    item {
+                        Text(
+                            "This puzzle is already solved.",
+                            color = TextLight,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else {
+                    val start = page * 5
+                    val end = minOf(solved.moves.size, start + 5)
+                    val batch = PuzzleEngine.instructions(solved.board, solved.moves, start, 5)
+
+                    item {
+                        Text(
+                            "Moves " + (start + 1) + "–" + end + " of " + solved.moves.size,
+                            color = TextLight,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    item {
+                        Text(
+                            "Each arrow means: tap the tile in that direction from the empty square.",
+                            color = Parchment,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            batch.forEachIndexed { index, arrow ->
+                                Card(
+                                    modifier = Modifier.weight(1f).height(88.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
+                                    border = BorderStroke(1.dp, RuneGold)
+                                ) {
+                                    Column(
+                                        Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.Center,
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text((start + index + 1).toString(), color = Parchment, fontSize = 11.sp)
+                                        Text(arrow, color = RuneGold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { if (page > 0) page-- },
+                                enabled = page > 0,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Previous")
+                            }
+                            Button(
+                                onClick = { if (end < solved.moves.size) page++ },
+                                enabled = end < solved.moves.size,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = RuneGold, contentColor = Color.Black)
+                            ) {
+                                Text(if (end < solved.moves.size) "Next 5" else "Done")
+                            }
+                        }
+                    }
+
+                    item {
+                        Text(
+                            "If you make a different move than shown, upload a fresh screenshot and the app will solve the new layout.",
+                            color = StoneLight,
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                item {
+                    TextButton(
+                        onClick = {
+                            analysis = null
+                            error = null
+                            page = 0
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Start over", color = Parchment)
                     }
                 }
             }
@@ -759,7 +1057,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.2.0", color = Parchment)
+            Text("Version 0.2.3", color = Parchment)
             Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
