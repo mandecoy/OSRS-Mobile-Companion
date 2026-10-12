@@ -10,6 +10,19 @@ object SavedPlayerName {
     private const val FILE = "player_profile_v1"
     private const val FIELD = "rsn"
 
+    // Keep the profile and whether its toolbar is shown independent.
+    // Hidden means COLLAPSED UI only; the name still autofills supported sites.
+    private const val TOOLBAR_VISIBLE = "username_toolbar_visible"
+
+    fun isToolbarVisible(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getBoolean(TOOLBAR_VISIBLE, true)
+
+    fun setToolbarVisible(context: Context, visible: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean(TOOLBAR_VISIBLE, visible).apply()
+    }
+
     fun get(context: Context): String =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString(FIELD, "") ?: ""
