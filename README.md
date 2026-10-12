@@ -2,18 +2,18 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.13**  
+**Current stable version: 0.5.14**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
 
 - Custom timers with separate minute and second fields
 - Non-focus floating companion overlay that stays above OSRS
-- Opaque floating timer with eye-toggle sizes: compact 142dp countdown-only strip or medium 192dp panel with Pause/Restart/Stop and expandable Edit controls
+- Opaque floating timer with eye-toggle sizes: compact 142dp countdown-only strip or medium 192dp panel with Pause/Restart/Stop and expandable Edit controls; Companion bubble also has Show/Hide Timer that preserves countdown
 - From the medium floating timer, edit remaining time ±1 minute / ±10 seconds, choose 1/5/10/15-minute presets, or toggle repeat; switching sizes preserves the live countdown and OSRS focus
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
 - Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
-- Manage Miscellania reminder with customizable 1-7-day interval and Done now reset
+- Manage Miscellania reminder with customizable 1-7-day interval, Done now reset, and live Last done time; Tears of Guthix also tracks actual Done today time
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
 - Farming timer icons show grown trees rather than saplings
@@ -24,6 +24,9 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
 - Required screenshot-versus-recognized-board review before any solution is shown
+- Visual puzzle correction: select a square in the original photo, then tap the matching piece in the solved reference; no misleading guessed tile numbers
+- Corrections are saved for the exact screenshot and verified picture features help future puzzles with the same artwork
+- Photo matcher tests 9 slight sampling alignments and blends shape/colour differences to handle imperfect cropping
 - Correct ANY recognized tile by tapping two squares in the actual screenshot to swap labels, or selecting a solved target 1–24 / EMPTY; undo, reset, and recalculate
 - Impossible image recognitions are blocked rather than silently modified to fit the solver
 - Flag speculative parity corrections so the user knows recognition might be wrong
@@ -46,6 +49,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - RuneScape Wiki DPS calculator
 - One saved OSRS username shared across Wise Old Man, Skill Calculators, Quest/Diary reference pages, Wiki and DPS Calculator; profile fields autofill on supported services
 - One-tap eye icon collapses username controls across web tools without deleting the saved username or stopping autofill
+- Web browser Fill targets focused or recognizable player inputs, including dynamically generated React fields; user sees success/fallback guidance
 - Separate Quests and Achievement Diaries tools
 - Guides hub with Theoatrix Skill Guides, Theoatrix AFK Methods, OSRS Wiki Strategy Guides, and OSRS Wiki Money Making Guide; Cake of guidance icon
 - Clue Helper
