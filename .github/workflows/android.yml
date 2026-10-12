@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [ "main", "v0.3.1-stable-rescue" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
@@ -31,9 +31,9 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: OSRS-Mobile-Companion-debug
+          name: OSRS-Companion-Tool-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
