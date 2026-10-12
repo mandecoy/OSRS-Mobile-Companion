@@ -131,6 +131,7 @@ class FloatingOverlayService : Service() {
     private var timerView: LinearLayout? = null
     private var timerParams: WindowManager.LayoutParams? = null
     private var countdownText: TextView? = null
+    private var timerTitleText: TextView? = null
     private var pauseButton: AndroidButton? = null
     private var timerStatusText: TextView? = null
     private var timerSettingText: TextView? = null
@@ -499,6 +500,7 @@ class FloatingOverlayService : Service() {
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
         }
+        timerTitleText = title
         header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
         val dragHandle = TextView(this).apply {
             text = "≡  DRAG"
@@ -654,6 +656,7 @@ class FloatingOverlayService : Service() {
             timerView = null
             timerParams = null
             countdownText = null
+            timerTitleText = null
             pauseButton = null
             timerStatusText = null
             timerSettingText = null
@@ -675,6 +678,7 @@ class FloatingOverlayService : Service() {
     }
 
     private fun refreshTimerDisplay() {
+        timerTitleText?.text = timerLabel.uppercase()
         countdownText?.text = formatMillis(timerRemaining)
         pauseButton?.text = if (timerPaused) "Resume" else "Pause"
         val state = if (timerPaused) "PAUSED" else "RUNNING"
@@ -744,6 +748,7 @@ class FloatingOverlayService : Service() {
         timerView = null
         timerParams = null
         countdownText = null
+        timerTitleText = null
         pauseButton = null
         timerStatusText = null
         timerSettingText = null
