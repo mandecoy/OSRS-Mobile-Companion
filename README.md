@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.10**  
+**Current stable version: 0.5.11**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -45,7 +45,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - RuneScape Wiki DPS calculator
 - One saved OSRS username shared across Wise Old Man, Skill Calculators, Quest/Diary reference pages, Wiki and DPS Calculator; profile fields autofill on supported services
 - Separate Quests and Achievement Diaries tools
-- Guides hub with Theoatrix Skill Guides, Theoatrix AFK Methods, and OSRS Wiki Guide Directory
+- Guides hub with Theoatrix Skill Guides, Theoatrix AFK Methods, OSRS Wiki Strategy Guides, and OSRS Wiki Money Making Guide; Cake of guidance icon
 - Clue Helper
 - Official Old School News archive
 - OSRS Wiki-sourced artwork throughout the app
