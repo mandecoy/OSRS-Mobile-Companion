@@ -2,6 +2,29 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.0
+
+### Added
+
+- Non-focus Android overlay for the floating companion controls
+- Draggable floating timer with Pause, Resume, Restart, Stop, and Repeat ON/OFF
+- Native GE Tools: Flip Finder, Most Traded, Gainers, Losers, and Death's Coffer estimates
+- Native High Alch profitability finder using recent traded prices, High Alch values, Nature rune cost, buy limits, and volume
+- Local flipping portfolio with cost basis, realized P&L, unrealized P&L, watchlist, and periodic Android price alerts
+- Individual GE item pages with recent bid/ask prices and seven-day hourly price charts
+- Searchable Fairy Ring directory showing code and location
+- Persistent local notepad
+- Reorderable main-tool layout and Quick Widget ordering
+- Toggleable weekly Tears of Guthix reminder
+- Toggleable daily Zaff battlestaff reset reminder
+
+### Changed
+
+- Timers now include the game-reminders section
+- New v0.5.0 tools are available from Quick Widgets
+- Home screen can be reordered and reset to the default layout
+- Personal companion data remains local; live GE information is fetched directly from the RuneScape Wiki price API
+
 ## 0.4.0
 
 ### Added
