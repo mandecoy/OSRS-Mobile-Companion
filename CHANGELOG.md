@@ -2,6 +2,21 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.7
+
+### Fixed
+- All five Puzzle Box taps now display simultaneously as numbered markers on the reconstructed puzzle image; a move can share the same square with a later numbered tap
+- Five-move groups change only with Previous 5 / Next 5; move cards are descriptive instead of advancing a single tile
+- Added a drag-enabled non-focusable Puzzle Bubble with a board and group navigation, retaining OSRS foreground focus during overlay actions
+- Tree and fruit-tree farming timers display mature tree artwork instead of saplings
+- Timers icon uses OSRS clock/watch artwork; Floating Companion now has its own magical orb icon
+
+### Added
+- Save one RuneScape username locally across Wise Old Man, Skill Calculators, Quests, Achievement Diaries, OSRS Wiki and DPS Calculator; auto-fill and read from supported player fields where available
+- Timers Quick Widget submenu contains Timers/AFK, Farming, and Dailies/Weeklies; individual reminders can be pinned and toggled
+- Manage Miscellania reminder now supports 1–7 whole-day intervals (24 hours remains the default); changing the interval reschedules the alarm
+- Miscellania reminders no longer mark check-ins completed automatically when a notification is delivered; "Done now" is the reset action
+
 ## 0.5.6
 
 ### Fixed
