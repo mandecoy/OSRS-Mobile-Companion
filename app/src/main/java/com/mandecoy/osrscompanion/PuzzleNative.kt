@@ -17,7 +17,9 @@ data class PuzzleAnalysis(
     val reference: Bitmap,
     val board: IntArray,
     val moves: List<Int>,
-    val matchDifference: Float
+    val matchDifference: Float,
+    /** True when an odd-parity image match required a speculative correction. */
+    val inferredParityRepair: Boolean = false
 )
 
 data class PuzzleMoveHint(
@@ -90,11 +92,16 @@ object PuzzleEngine {
         val board = winnerAssignment ?: return null
         val costs = winnerCosts ?: return null
 
+        // A parity error means screenshot recognition was not correct. A
+        // minimum-cost tile swap only gives us a GUESS, never proof of which
+        // two picture tiles OSRS actually has. Flag it for the review screen.
+        var repairedParity = false
         if (!solvable(board)) {
             val swap = leastExpensiveParityFix(board, costs) ?: return null
             val tmp = board[swap.first]
             board[swap.first] = board[swap.second]
             board[swap.second] = tmp
+            repairedParity = true
         }
         if (!solvable(board)) return null
 
@@ -105,7 +112,8 @@ object PuzzleEngine {
             reference = ref.grid,
             board = board.copyOf(),
             moves = moves,
-            matchDifference = winnerMean
+            matchDifference = winnerMean,
+            inferredParityRepair = repairedParity
         )
     }
 
@@ -125,15 +133,39 @@ object PuzzleEngine {
             }
         }
         val assignment = minimumAssignmentWithForcedGap(costs, gapPosition)
+        var parityRepaired = false
         if (!solvable(assignment)) {
             val swap = leastExpensiveParityFix(assignment, costs) ?: return null
             val temp = assignment[swap.first]
             assignment[swap.first] = assignment[swap.second]
             assignment[swap.second] = temp
+            parityRepaired = true
         }
         if (!solvable(assignment)) return null
         val solution = findSolution(assignment) ?: return null
-        return current.copy(board = assignment, moves = solution)
+        return current.copy(
+            board = assignment, moves = solution,
+            inferredParityRepair = parityRepaired
+        )
+    }
+
+    /**
+     * User-confirmed picture tile labels. These are the zero-based SOLVED
+     * destinations for each visible tile in the original screenshot.
+     * Reject invalid / unsolvable arrangements rather than inventing a
+     * move sequence that solves a different puzzle.
+     */
+    fun solveCorrectedBoard(current: PuzzleAnalysis, verifiedBoard: IntArray): PuzzleAnalysis? {
+        if (verifiedBoard.size != CELL_COUNT ||
+            verifiedBoard.any { it !in 0 until CELL_COUNT } ||
+            verifiedBoard.toSet().size != CELL_COUNT ||
+            !solvable(verifiedBoard)) return null
+        val solution = findSolution(verifiedBoard) ?: return null
+        return current.copy(
+            board = verifiedBoard.copyOf(),
+            moves = solution,
+            inferredParityRepair = false
+        )
     }
 
     /**
