@@ -2,6 +2,18 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.6
+
+### Fixed
+
+- Restored Previous 5 and Next 5 navigation instead of requiring an individual Next press for each puzzle move
+- The five move cards can be tapped to preview that individual step without changing the current five-move page
+- Puzzle routes now compare the old row/column solver against shorter bounded whole-board searches
+- Solver paths are replay-validated and cycle-reduced before presentation
+- Empty squares in reconstructed previews now show the actual screenshot's blank instead of a solved-artwork tile
+- Added an interactive "Wrong EMPTY square?" correction tool that reassigns tiles and recalculates the solution
+- Unusually long paths warn players to verify the screenshot's empty square
+
 ## 0.5.5
 
 ### Fixed
