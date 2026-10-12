@@ -136,11 +136,11 @@ data class Tool(val title: String, val subtitle: String, val route: String, val 
 private val Tools = listOf(
     Tool("Timers", "AFK + farming + reminders", "timers", osrsWikiImage("Sleeping_cap.png")),
     Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Watch.png")),
-    Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_clerk.png")),
+    Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
-    Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Coins_10000.png")),
+    Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
     Tool("Fairy Rings", "Code + location directory", "fairy_rings", osrsWikiImage("Fairy_ring.png")),
-    Tool("Notepad", "Persistent local notes", "notepad", osrsWikiImage("Book.png")),
+    Tool("Notepad", "Persistent local notes", "notepad", osrsWikiImage("Spell_scroll.png")),
     Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box_zulrah.png")),
     Tool("Light Box", "Master clue solver", "lightbox", osrsWikiImage("Light_box.png")),
     Tool("GE Prices", "RuneScape Wiki prices", "web/prices", osrsWikiImage("Coins_10000.png")),
@@ -167,11 +167,11 @@ data class QuickAction(
 private val QuickChoices = listOf(
     QuickAction("timers", "Timers", osrsWikiImage("Sleeping_cap.png"), route = "timers"),
     QuickAction("floating", "Floating Companion", osrsWikiImage("Watch.png"), route = "floating"),
-    QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_clerk.png"), route = "ge_tools"),
+    QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_Clerk.png"), route = "ge_tools"),
     QuickAction("high_alch", "High Alch", osrsWikiImage("High_Level_Alchemy.png"), route = "high_alch"),
-    QuickAction("portfolio", "Portfolio", osrsWikiImage("Coins_10000.png"), route = "portfolio"),
+    QuickAction("portfolio", "Portfolio", osrsWikiImage("Platinum_token.png"), route = "portfolio"),
     QuickAction("fairy_rings", "Fairy Rings", osrsWikiImage("Fairy_ring.png"), route = "fairy_rings"),
-    QuickAction("notepad", "Notepad", osrsWikiImage("Book.png"), route = "notepad"),
+    QuickAction("notepad", "Notepad", osrsWikiImage("Spell_scroll.png"), route = "notepad"),
     QuickAction("herb", "Herb Run", osrsWikiImage("Ranarr_weed.png"), seconds = 80 * 60),
     QuickAction("bird", "Birdhouse", osrsWikiImage("Bird_house.png"), seconds = 50 * 60),
     QuickAction("puzzle", "Puzzle Box", osrsWikiImage("Puzzle_box_zulrah.png"), route = "puzzle"),
@@ -451,6 +451,7 @@ data class FarmPreset(val label: String, val seconds: Long, val icon: String)
 private val FarmPresets = listOf(
     FarmPreset("Herb run", 80 * 60, "🌿"),
     FarmPreset("Birdhouse run", 50 * 60, "🐦"),
+    FarmPreset("Coral", 160 * 60, "🪸"),
     FarmPreset("Allotments", 40 * 60, "🌱"),
     FarmPreset("Hops", 40 * 60, "🌱"),
     FarmPreset("Bushes", 100 * 60, "🌿"),
@@ -1103,7 +1104,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.5.0", color = Parchment)
+            Text("Version 0.5.1", color = Parchment)
             Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)

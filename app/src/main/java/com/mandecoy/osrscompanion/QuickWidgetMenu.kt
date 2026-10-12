@@ -57,12 +57,13 @@ data class WidgetOption(
 
 private val TimerWidgetOptions = listOf(
     WidgetOption("custom", "Custom Timer", "Sleeping_cap.png", customTimer = true),
-    WidgetOption("timers", "Open Timers", "Watch.png", route = "timers")
+    WidgetOption("timers", "Open Timers", "Sleeping_cap.png", route = "timers")
 )
 
 private val FarmWidgetOptions = listOf(
     WidgetOption("herb", "Herb Run", "Ranarr_weed.png", seconds = 80 * 60),
     WidgetOption("bird", "Birdhouse Run", "Bird_house.png", seconds = 50 * 60),
+    WidgetOption("coral", "Coral", "Elkhorn_coral.png", seconds = 160 * 60),
     WidgetOption("allotments", "Allotments", "Watermelon.png", seconds = 40 * 60),
     WidgetOption("hops", "Hops", "Jute_fibre.png", seconds = 40 * 60),
     WidgetOption("bushes", "Bushes", "White_berries.png", seconds = 100 * 60),
@@ -80,11 +81,11 @@ private val FarmWidgetOptions = listOf(
 
 private val ToolWidgetOptions = listOf(
     WidgetOption("floating", "Floating Companion", "Watch.png", route = "floating"),
-    WidgetOption("ge_tools", "GE Tools", "Grand_Exchange_clerk.png", route = "ge_tools"),
+    WidgetOption("ge_tools", "GE Tools", "Grand_Exchange_Clerk.png", route = "ge_tools"),
     WidgetOption("high_alch", "High Alch", "High_Level_Alchemy.png", route = "high_alch"),
-    WidgetOption("portfolio", "Portfolio", "Coins_10000.png", route = "portfolio"),
+    WidgetOption("portfolio", "Portfolio", "Platinum_token.png", route = "portfolio"),
     WidgetOption("fairy_rings", "Fairy Rings", "Fairy_ring.png", route = "fairy_rings"),
-    WidgetOption("notepad", "Notepad", "Book.png", route = "notepad"),
+    WidgetOption("notepad", "Notepad", "Spell_scroll.png", route = "notepad"),
     WidgetOption("puzzle", "Puzzle Box", "Puzzle_box_zulrah.png", route = "puzzle"),
     WidgetOption("light", "Light Box", "Light_box.png", route = "lightbox"),
     WidgetOption("prices", "Grand Exchange Prices", "Coins_10000.png", route = "web/prices"),
@@ -213,7 +214,7 @@ private fun QuickSlotCard(
                     when (menuPage) {
                         "root" -> {
                             CategoryMenuItem("Timers", "Sleeping_cap.png") { menuPage = "timers" }
-                            CategoryMenuItem("Farm Runs", "Ranarr_weed.png") { menuPage = "farm" }
+                            CategoryMenuItem("Farm Runs", "Tool_leprechaun.png") { menuPage = "farm" }
                             CategoryMenuItem("Tools", "Wrench.png") { menuPage = "tools" }
                         }
                         "timers" -> {

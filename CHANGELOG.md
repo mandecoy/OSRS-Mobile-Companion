@@ -2,6 +2,18 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.1
+
+### Changed
+
+- GE Tools now uses a distinct Grand Exchange Clerk icon instead of sharing a generic market look
+- Portfolio now uses a Platinum token icon instead of the same coins icon as GE Prices
+- Notepad now uses a scroll-style notes icon instead of the generic book icon
+- Existing Quick Widgets for these tools now resolve to the corrected icons automatically
+- Timers use the night-cap icon and the Farm Runs selector uses the Tool Leprechaun icon
+- Added a 2 hour 40 minute Coral timer preset with coral artwork
+- Added a toggleable 24-hour Manage Miscellania reminder with a “Done now” reset button
+
 ## 0.5.0
 
 ### Added
