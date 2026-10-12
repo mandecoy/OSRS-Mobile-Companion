@@ -8,6 +8,7 @@ All notable changes to OSRS Companion Tool are documented here.
 
 - Old School News now opens fitted to the phone width instead of loading heavily zoomed/cropped
 - Pinch-to-zoom remains available for the legacy Jagex news archive
+- GE item detail pages now include a button to open that exact item on the OSRS Prices Wiki
 
 ## 0.5.3
 
