@@ -25,6 +25,46 @@ object SavedPlayerName {
      * fill explicitly player/username-labelled empty inputs on approved hosts.
      * Never submit a form or replace what the user is already typing.
      */
+    /**
+     * Also remember a player name entered directly into a supported site's own
+     * username field. evaluateJavascript reads only labelled text/search fields;
+     * no broad JavaScript bridge is exposed to third-party websites.
+     */
+    fun readEnteredName(webView: WebView, pageUrl: String?, onRead: (String) -> Unit) {
+        val host = try { Uri.parse(pageUrl).host?.lowercase() ?: "" }
+                   catch (_: Exception) { "" }
+        val supported = listOf("wiseoldman.net", "oldschool.tools", "tools.runescape.wiki")
+        if (supported.none { host == it || host.endsWith(".$it") }) return
+
+        val script = """
+            (function() {
+              const re = /(?:username|user.name|player.name|player|rsn|account.name|character.name)/i;
+              for (const el of document.querySelectorAll('input')) {
+                const type = (el.getAttribute('type') || 'text').toLowerCase();
+                if (type !== 'text' && type !== 'search') continue;
+                const label = [el.name, el.id, el.placeholder,
+                  el.getAttribute('aria-label'), el.getAttribute('data-testid')]
+                  .filter(Boolean).join(' ');
+                if (!re.test(label)) continue;
+                const value = (el.value || '').trim();
+                if (value.length >= 1 && value.length <= 12 &&
+                    /^[a-zA-Z0-9 _-]+$/.test(value)) return value;
+              }
+              return null;
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(script) { result ->
+            val name = try {
+                org.json.JSONTokener(result).nextValue() as? String
+            } catch (_: Exception) { null }
+            if (name != null && name.isNotBlank() && name != get(webView.context)) {
+                save(webView.context, name)
+                onRead(name)
+            }
+        }
+    }
+
     fun fillRelevantFields(webView: WebView, pageUrl: String?, username: String) {
         val name = username.trim().take(12)
         if (name.isEmpty()) return
