@@ -57,12 +57,13 @@ data class WidgetOption(
 
 private val TimerWidgetOptions = listOf(
     WidgetOption("custom", "Custom Timer", "Sleeping_cap.png", customTimer = true),
-    WidgetOption("timers", "Open Timers", "Watch.png", route = "timers")
+    WidgetOption("timers", "Open Timers", "Sleeping_cap.png", route = "timers")
 )
 
 private val FarmWidgetOptions = listOf(
     WidgetOption("herb", "Herb Run", "Ranarr_weed.png", seconds = 80 * 60),
     WidgetOption("bird", "Birdhouse Run", "Bird_house.png", seconds = 50 * 60),
+    WidgetOption("coral", "Coral", "Tool_leprechaun.png", seconds = 160 * 60),
     WidgetOption("allotments", "Allotments", "Watermelon.png", seconds = 40 * 60),
     WidgetOption("hops", "Hops", "Jute_fibre.png", seconds = 40 * 60),
     WidgetOption("bushes", "Bushes", "White_berries.png", seconds = 100 * 60),
@@ -213,7 +214,7 @@ private fun QuickSlotCard(
                     when (menuPage) {
                         "root" -> {
                             CategoryMenuItem("Timers", "Sleeping_cap.png") { menuPage = "timers" }
-                            CategoryMenuItem("Farm Runs", "Ranarr_weed.png") { menuPage = "farm" }
+                            CategoryMenuItem("Farm Runs", "Tool_leprechaun.png") { menuPage = "farm" }
                             CategoryMenuItem("Tools", "Wrench.png") { menuPage = "tools" }
                         }
                         "timers" -> {
