@@ -456,16 +456,16 @@ private val FarmPresets = listOf(
     FarmPreset("Allotments", 40 * 60, "Watermelon.png"),
     FarmPreset("Hops", 40 * 60, "Jute_fibre.png"),
     FarmPreset("Bushes", 100 * 60, "White_berries.png"),
-    FarmPreset("Oak tree", 200 * 60, "Oak_sapling.png"),
-    FarmPreset("Willow tree", 240 * 60, "Willow_sapling.png"),
-    FarmPreset("Maple tree", 320 * 60, "Maple_sapling.png"),
-    FarmPreset("Yew tree", 400 * 60, "Yew_sapling.png"),
-    FarmPreset("Magic tree", 480 * 60, "Magic_sapling.png"),
-    FarmPreset("Fruit tree", 960 * 60, "Pineapple_sapling.png"),
-    FarmPreset("Teak tree", 4480 * 60, "Teak_sapling.png"),
-    FarmPreset("Mahogany tree", 5120 * 60, "Mahogany_sapling.png"),
-    FarmPreset("Cactus", 560 * 60, "Cactus_seed.png"),
-    FarmPreset("Calquat", 1280 * 60, "Calquat_sapling.png")
+    FarmPreset("Oak tree", 200 * 60, "Oak_tree_(grown).png"),
+    FarmPreset("Willow tree", 240 * 60, "Willow_tree_(grown).png"),
+    FarmPreset("Maple tree", 320 * 60, "Maple_Tree_(grown).png"),
+    FarmPreset("Yew tree", 400 * 60, "Yew_tree_(grown).png"),
+    FarmPreset("Magic tree", 480 * 60, "Magic_tree_(grown).png"),
+    FarmPreset("Fruit tree", 960 * 60, "Palm_tree_(grown).png"),
+    FarmPreset("Teak tree", 4480 * 60, "Teak_tree_(grown).png"),
+    FarmPreset("Mahogany tree", 5120 * 60, "Mahogany_tree_(grown).png"),
+    FarmPreset("Cactus", 560 * 60, "Cactus_(grown).png"),
+    FarmPreset("Calquat", 1280 * 60, "Calquat_tree_(grown).png")
 )
 
 @Composable
