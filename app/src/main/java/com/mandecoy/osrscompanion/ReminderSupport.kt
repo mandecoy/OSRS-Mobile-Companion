@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -30,6 +32,7 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
 
 object GameReminderStore {
     private const val PREFS = "game_reminders_v1"
@@ -38,6 +41,7 @@ object GameReminderStore {
     private const val ZAFF_ENABLED = "zaff_enabled"
     private const val MISC_ENABLED = "misc_enabled"
     private const val MISC_LAST_DONE = "misc_last_done"
+    private const val MISC_INTERVAL_DAYS = "misc_interval_days"
 
     fun tearsEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -50,6 +54,17 @@ object GameReminderStore {
     fun miscellaniaEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(MISC_ENABLED, false)
+
+    /** Defaults to the previous 24-hour reminder; accepts whole days, 1–7. */
+    fun miscellaniaIntervalDays(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(MISC_INTERVAL_DAYS, 1).coerceIn(1, 7)
+
+    fun setMiscellaniaIntervalDays(context: Context, days: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putInt(MISC_INTERVAL_DAYS, days.coerceIn(1, 7)).apply()
+        if (miscellaniaEnabled(context)) GameReminderScheduler.scheduleMiscellania(context)
+    }
 
     fun setTearsEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -140,8 +155,15 @@ object GameReminderScheduler {
     }
 
     fun scheduleMiscellania(context: Context) {
-        val base = GameReminderStore.miscellaniaLastDone(context) ?: System.currentTimeMillis()
-        val next = base + 24L * 60L * 60L * 1000L
+        val now = System.currentTimeMillis()
+        val base = GameReminderStore.miscellaniaLastDone(context) ?: now
+        val intervalMillis = GameReminderStore.miscellaniaIntervalDays(context) *
+            24L * 60L * 60L * 1000L
+        // Anchor to the player's last actual "Done now" check-in, never a
+        // notification dispatch. If the device was off, skip missed repeats
+        // instead of scheduling an immediate repeating notification storm.
+        val elapsed = (now - base).coerceAtLeast(0L)
+        val next = base + (elapsed / intervalMillis + 1L) * intervalMillis
         schedule(context, MISC_REQUEST, TYPE_MISC, next)
     }
 
@@ -204,7 +226,8 @@ class GameReminderReceiver : BroadcastReceiver() {
                     7303,
                     "Manage Miscellania check-in"
                 )
-                GameReminderStore.markMiscellaniaDoneNow(context)
+                // Receiving a notification does not mean the player checked in.
+                GameReminderScheduler.scheduleMiscellania(context)
             }
         }
     }
@@ -216,6 +239,7 @@ fun GameRemindersCard(context: Context) {
     var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
     var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
     var miscellaniaEnabled by remember { mutableStateOf(GameReminderStore.miscellaniaEnabled(context)) }
+    var miscellaniaDays by remember { mutableIntStateOf(GameReminderStore.miscellaniaIntervalDays(context)) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
@@ -290,7 +314,8 @@ fun GameRemindersCard(context: Context) {
                 Column(Modifier.weight(1f)) {
                     Text("Manage Miscellania", color = Color(0xfff4ead4), fontWeight = FontWeight.Bold)
                     Text(
-                        "24-hour reminder from your last check-in.",
+                        "Remind every " + miscellaniaDays +
+                            if (miscellaniaDays == 1) " day since your last check-in." else " days since your last check-in.",
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
@@ -302,6 +327,33 @@ fun GameRemindersCard(context: Context) {
                         GameReminderStore.setMiscellaniaEnabled(context, it)
                     }
                 )
+            }
+
+            Text(
+                "Manage Miscellania reminder interval: " + miscellaniaDays +
+                    if (miscellaniaDays == 1) " day (24 hours)" else " days",
+                color = Color(0xffd7c7a4),
+                fontSize = 12.sp
+            )
+            Slider(
+                value = miscellaniaDays.toFloat(),
+                onValueChange = { fraction ->
+                    val days = fraction.roundToInt().coerceIn(1, 7)
+                    if (days != miscellaniaDays) {
+                        miscellaniaDays = days
+                        GameReminderStore.setMiscellaniaIntervalDays(context, days)
+                    }
+                },
+                valueRange = 1f..7f,
+                steps = 5,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("1 day", color = Color(0xffd7c7a4), fontSize = 11.sp)
+                Text("7 days", color = Color(0xffd7c7a4), fontSize = 11.sp)
             }
 
             if (miscellaniaEnabled) {
