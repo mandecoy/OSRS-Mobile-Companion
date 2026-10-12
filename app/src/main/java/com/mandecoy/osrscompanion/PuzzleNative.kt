@@ -74,7 +74,7 @@ object PuzzleEngine {
                     featureDistance(observed[pos], ref.tileFeatures[tile]).toDouble()
                 }
             }
-            val assignment = minimumAssignmentWithForcedGap(costs)
+            val assignment = minimumAssignmentWithForcedGap(costs, detectEmptyPosition(cropped))
             var total = 0.0
             for (pos in 0 until CELL_COUNT) total += costs[pos][assignment[pos]]
             val mean = (total / CELL_COUNT).toFloat()
@@ -107,6 +107,70 @@ object PuzzleEngine {
             moves = moves,
             matchDifference = winnerMean
         )
+    }
+
+
+    /**
+     * Let the player correct a wrongly detected empty square without uploading again.
+     * Reassign all 24 picture tiles against the same official artwork; simply
+     * moving the GAP marker on an existing assignment would corrupt the board.
+     */
+    fun correctEmptyPosition(current: PuzzleAnalysis, gapPosition: Int): PuzzleAnalysis? {
+        if (gapPosition !in 0 until CELL_COUNT) return null
+        val observed = tileFeatures(current.preview)
+        val referenceFeatures = tileFeatures(current.reference)
+        val costs = Array(CELL_COUNT) { pos ->
+            DoubleArray(CELL_COUNT) { tile ->
+                featureDistance(observed[pos], referenceFeatures[tile]).toDouble()
+            }
+        }
+        val assignment = minimumAssignmentWithForcedGap(costs, gapPosition)
+        if (!solvable(assignment)) {
+            val swap = leastExpensiveParityFix(assignment, costs) ?: return null
+            val temp = assignment[swap.first]
+            assignment[swap.first] = assignment[swap.second]
+            assignment[swap.second] = temp
+        }
+        if (!solvable(assignment)) return null
+        val solution = findSolution(assignment) ?: return null
+        return current.copy(board = assignment, moves = solution)
+    }
+
+    /**
+     * OSRS blank cells have a nearly uniform dark interior. Use that as an
+     * independent signal instead of treating the solved picture's last square
+     * as if it were necessarily an empty tile. Only commit when unambiguous.
+     */
+    private fun detectEmptyPosition(image: Bitmap): Int? {
+        val w = image.width / SIDE.toFloat()
+        val h = image.height / SIDE.toFloat()
+        if (w < 10f || h < 10f) return null
+        val scores = ArrayList<Pair<Int, Double>>(CELL_COUNT)
+        for (pos in 0 until CELL_COUNT) {
+            val col = pos % SIDE
+            val row = pos / SIDE
+            var total = 0.0
+            var squared = 0.0
+            var count = 0
+            for (sy in 0 until 7) for (sx in 0 until 7) {
+                val x = ((col + 0.28f + sx * 0.44f / 6f) * w).toInt().coerceIn(0, image.width - 1)
+                val y = ((row + 0.28f + sy * 0.44f / 6f) * h).toInt().coerceIn(0, image.height - 1)
+                val c = image.getPixel(x, y)
+                val luma = luminance(c).toDouble()
+                total += luma
+                squared += luma * luma
+                count++
+            }
+            val mean = total / count
+            val deviation = kotlin.math.sqrt(max(0.0, squared / count - mean * mean))
+            scores.add(pos to (mean + deviation * 1.5))
+        }
+        scores.sortBy { it.second }
+        if (scores.size < 2) return null
+        // Avoid guessing when a dark patch in the artwork resembles a blank.
+        return if (scores[0].second < 120.0 && scores[1].second - scores[0].second > 12.0) {
+            scores[0].first
+        } else null
     }
 
     fun moveHints(board: IntArray, moves: List<Int>, start: Int, count: Int = 5): List<PuzzleMoveHint> {
@@ -440,7 +504,7 @@ object PuzzleEngine {
         return total / a.size
     }
 
-    private fun minimumAssignmentWithForcedGap(cost: Array<DoubleArray>): IntArray {
+    private fun minimumAssignmentWithForcedGap(cost: Array<DoubleArray>, knownGap: Int? = null): IntArray {
         // The solved reference always has the empty slot at tile 24. Matching the
         // gap separately prevents a dark artwork tile from stealing the GAP label.
         var gapPosition = 0
@@ -452,6 +516,7 @@ object PuzzleEngine {
             }
         }
 
+        gapPosition = knownGap?.takeIf { it in 0 until CELL_COUNT } ?: gapPosition
         val positions = (0 until CELL_COUNT).filter { it != gapPosition }
         val tiles = (0 until CELL_COUNT).filter { it != GAP }
         val reduced = Array(CELL_COUNT - 1) { row ->
@@ -577,22 +642,66 @@ object PuzzleEngine {
     private fun findSolution(start: IntArray): List<Int>? {
         if (start.indices.all { start[it] == it }) return emptyList()
 
-        // First use the same practical row/column reduction strategy used by
-        // RuneLite's puzzle solver. It produces much shorter, more human-friendly
-        // paths than trying to greedily solve the entire 5x5 board at once.
-        FastPuzzleSolver.solve(start)?.let { fast ->
-            if (fast.isNotEmpty()) return fast.toList()
+        // Keep the proven row/column solver as a reliable fallback, but don't
+        // automatically show its much longer path. A direct weighted A* search
+        // can find dramatically shorter routes on partly completed puzzles.
+        var best = validateAndShorten(start, FastPuzzleSolver.solve(start)?.toList())
+        val lowerBound = heuristic(start)
+        if (lowerBound <= 65 || best == null || best.size > 120) {
+            val weights = if (lowerBound <= 48) doubleArrayOf(1.4, 1.8, 2.3)
+                          else doubleArrayOf(1.8, 2.3)
+            for (weight in weights) {
+                val result = validateAndShorten(start, weightedSearch(start, weight, 120_000))
+                if (result != null && (best == null || result.size < best.size)) best = result
+                if (best != null && best.size <= lowerBound + max(8, lowerBound / 3)) break
+            }
         }
+        if (best != null) return best
 
-        // Safety fallback for an unusual board where the deterministic solver
-        // cannot finish.
+        // Limited fallback for unusual boards. Every returned move is replayed
+        // and checked before we ever show it to the player.
         for (weight in doubleArrayOf(2.0, 3.0, 4.5)) {
-            weightedSearch(start, weight)?.let { return it }
+            validateAndShorten(start, weightedSearch(start, weight, SEARCH_LIMIT))?.let { return it }
         }
         return null
     }
 
-    private fun weightedSearch(start: IntArray, weight: Double): List<Int>? {
+    private fun validateAndShorten(start: IntArray, path: List<Int>?): List<Int>? {
+        if (path == null) return null
+        val board = start.copyOf()
+        var gap = board.indexOf(GAP)
+        if (gap < 0) return null
+        val simplified = ArrayList<Int>(path.size)
+        val histories = ArrayList<Packed>(path.size + 1)
+        val stateIndex = HashMap<Packed, Int>()
+        val initial = pack(board)
+        histories.add(initial)
+        stateIndex[initial] = 0
+        for (move in path) {
+            if (move !in adjacent[gap]) return null
+            board[gap] = board[move]
+            board[move] = GAP
+            gap = move
+            val key = pack(board)
+            val seenAt = stateIndex[key]
+            if (seenAt != null) {
+                // This loop brought us to an identical full board state.
+                // Remove all the wasted swaps and keep the current state.
+                while (simplified.size > seenAt) {
+                    simplified.removeAt(simplified.lastIndex)
+                    stateIndex.remove(histories.removeAt(histories.lastIndex))
+                }
+            } else {
+                simplified.add(move)
+                histories.add(key)
+                stateIndex[key] = simplified.size
+            }
+        }
+        if (board.indices.any { board[it] != it }) return null
+        return simplified
+    }
+
+    private fun weightedSearch(start: IntArray, weight: Double, maxExpanded: Int): List<Int>? {
         val goal = pack(IntArray(CELL_COUNT) { it })
         val queue = PriorityQueue<SearchNode> { a, b -> a.priority.compareTo(b.priority) }
         val seen = HashSet<Packed>(SEARCH_LIMIT)
@@ -611,7 +720,7 @@ object PuzzleEngine {
         val board = IntArray(CELL_COUNT)
         var expanded = 0
 
-        while (queue.isNotEmpty() && expanded < SEARCH_LIMIT) {
+        while (queue.isNotEmpty() && expanded < maxExpanded) {
             val node = queue.poll()
             if (node.key == goal) {
                 val reversed = ArrayList<Int>()
