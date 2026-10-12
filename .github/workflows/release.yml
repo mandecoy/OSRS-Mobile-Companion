@@ -2,6 +2,13 @@ name: Android Release APK
 
 on:
   workflow_dispatch:
+  # Build a signed, installable APK automatically whenever the app version
+  # changes. Manual release builds remain available too.
+  push:
+    branches: [ "main" ]
+    paths:
+      - "app/build.gradle.kts"
+      - ".github/workflows/release.yml"
 
 jobs:
   signed-release:
