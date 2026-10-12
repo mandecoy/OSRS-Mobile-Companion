@@ -114,6 +114,7 @@ private val WebTools = mapOf(
     "wise" to WebTool("Wise Old Man", "https://wiseoldman.net/", "Player lookup, XP and account tracking."),
     "stars" to WebTool("Shooting Stars", "https://osrsportal.com/shooting-stars-tracker", "OSRS Portal shooting-star tracker."),
     "skills" to WebTool("Skill Calculators", "https://oldschool.tools/calculators/skill", "Pick a skill, look up a player, and plan XP."),
+    "dps" to WebTool("DPS Calculator", "https://tools.runescape.wiki/osrs-dps/", "Compare gear, weapons, attack styles, and damage output."),
     "puzzle" to WebTool("Puzzle Box Solver", "https://osrs-puzzle-box-solver.vercel.app/", "Upload your puzzle-box screenshot and follow the moves in groups of five."),
     "light" to WebTool("Light Box Solver", "https://osrs-lightbox-solver.fletom.com/", "Solve master-clue light boxes."),
     "quests" to WebTool("Quests & Diaries", "https://oldschool.runescape.wiki/w/Quest_List", "Quest and achievement-diary references."),
@@ -131,6 +132,7 @@ private val Tools = listOf(
     Tool("Wise Old Man", "Player lookup", "web/wise"),
     Tool("Shooting Stars", "OSRS Portal tracker", "web/stars"),
     Tool("Skill Calculators", "All skills", "web/skills"),
+    Tool("DPS Calculator", "Combat damage calculator", "web/dps"),
     Tool("Quests & Diaries", "Guides + requirements", "web/quests"),
     Tool("Clue Helper", "Treasure trail references", "web/clues"),
     Tool("Quick Actions", "Customize two shortcuts", "quick"),
@@ -152,7 +154,8 @@ private val QuickChoices = listOf(
     QuickAction("puzzle", "Puzzle Box", route = "web/puzzle"),
     QuickAction("stars", "Shooting Stars", route = "web/stars"),
     QuickAction("wiki", "OSRS Wiki", route = "web/wiki"),
-    QuickAction("timers", "Timers", route = "timers")
+    QuickAction("timers", "Timers", route = "timers"),
+    QuickAction("dps", "DPS Calculator", route = "web/dps")
 )
 
 object QuickActionStore {
