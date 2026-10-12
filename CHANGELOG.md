@@ -2,6 +2,14 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.2
+
+### Fixed
+
+- Puzzle Box preview now physically moves the uploaded tile images between five-move batches
+- The EMPTY marker now follows the actual simulated empty tile instead of being drawn over the unchanged original screenshot
+- Later batches now show the board state produced by all prior moves, making moves 6–10, 11–15, and later pages line up visually
+
 ## 0.5.1
 
 ### Changed
