@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.5**  
+**Current stable version: 0.5.6**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -19,7 +19,8 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
 - Numbered move overlays directly on the Puzzle Box tiles
-- Five-move Puzzle Box batches with Previous / Next 5 navigation
+- Five-move Puzzle Box batches with Previous 5 / Next 5 navigation and tap-to-preview
+- Manual EMPTY-square correction when screenshot matching picks the wrong blank
 - Native Light Box solver with highlighted A-H switch guidance
 - Native GE Tools with flip finder, most-traded items, gainers/losers, Death's Coffer estimates, and item price charts
 - Native High Alch profitability finder using recent prices, Nature rune cost, volume, and buy limits
