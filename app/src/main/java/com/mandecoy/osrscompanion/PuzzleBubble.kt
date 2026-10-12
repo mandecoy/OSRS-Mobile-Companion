@@ -45,6 +45,8 @@ object PuzzleBubbleStore {
                 .putString("board", analysis.board.joinToString(","))
                 .putString("moves", analysis.moves.joinToString(","))
                 .putFloat("difference", analysis.matchDifference)
+                .putFloat("match_shift_x", analysis.matchShiftX)
+                .putFloat("match_shift_y", analysis.matchShiftY)
                 .putBoolean("recognition_impossible", analysis.inferredParityRepair)
                 .putInt("start", start.coerceIn(0, analysis.moves.size))
                 .apply()
@@ -77,7 +79,9 @@ object PuzzleBubbleStore {
                 prefs.getString("name", "Puzzle") ?: "Puzzle",
                 original, ref, board, moves,
                 prefs.getFloat("difference", 0f),
-                prefs.getBoolean("recognition_impossible", false)
+                prefs.getBoolean("recognition_impossible", false),
+                prefs.getFloat("match_shift_x", 0f),
+                prefs.getFloat("match_shift_y", 0f)
             ).also { cached = it }
         } catch (_: Exception) {
             null
