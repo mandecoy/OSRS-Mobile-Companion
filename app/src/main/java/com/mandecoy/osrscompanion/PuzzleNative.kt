@@ -19,6 +19,12 @@ data class PuzzleAnalysis(
     val matchDifference: Float
 )
 
+data class PuzzleMoveHint(
+    val moveNumber: Int,
+    val position: Int,
+    val arrow: String
+)
+
 object PuzzleEngine {
     private const val SIDE = 5
     private const val CELL_COUNT = 25
@@ -89,6 +95,49 @@ object PuzzleEngine {
 
         val moves = findSolution(board) ?: return null
         return PuzzleAnalysis(ref.name, cropped, board.copyOf(), moves, winnerMean)
+    }
+
+    fun moveHints(board: IntArray, moves: List<Int>, start: Int, count: Int = 5): List<PuzzleMoveHint> {
+        if (start >= moves.size) return emptyList()
+        val state = board.copyOf()
+        var gap = state.indexOf(GAP)
+
+        for (i in 0 until min(start, moves.size)) {
+            val next = moves[i]
+            state[gap] = state[next]
+            state[next] = GAP
+            gap = next
+        }
+
+        val hints = ArrayList<PuzzleMoveHint>()
+        val end = min(moves.size, start + count)
+        for (i in start until end) {
+            val tilePos = moves[i]
+            val arrow = when {
+                tilePos == gap - SIDE -> "↑"
+                tilePos == gap + SIDE -> "↓"
+                tilePos == gap - 1 -> "←"
+                tilePos == gap + 1 -> "→"
+                else -> "•"
+            }
+            hints.add(PuzzleMoveHint(i + 1, tilePos, arrow))
+            state[gap] = state[tilePos]
+            state[tilePos] = GAP
+            gap = tilePos
+        }
+        return hints
+    }
+
+    fun gapPositionAt(board: IntArray, moves: List<Int>, start: Int): Int {
+        val state = board.copyOf()
+        var gap = state.indexOf(GAP)
+        for (i in 0 until min(start, moves.size)) {
+            val next = moves[i]
+            state[gap] = state[next]
+            state[next] = GAP
+            gap = next
+        }
+        return gap
     }
 
     fun instructions(board: IntArray, moves: List<Int>, start: Int, count: Int = 5): List<String> {

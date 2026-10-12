@@ -25,29 +25,44 @@ fun osrsWikiImage(fileName: String): String =
     "https://oldschool.runescape.wiki/w/Special:Redirect/file/" + Uri.encode(fileName)
 
 fun iconUrlForAction(action: QuickAction): String {
-    if (action.icon.startsWith("http")) return action.icon
     val label = action.label.lowercase()
+
     if (action.seconds != null) {
         return when {
             "herb" in label -> osrsWikiImage("Ranarr_weed.png")
             "bird" in label -> osrsWikiImage("Bird_house.png")
+            "allot" in label -> osrsWikiImage("Watermelon.png")
+            "hop" in label -> osrsWikiImage("Jute_fibre.png")
+            "bush" in label -> osrsWikiImage("White_berries.png")
+            "oak" in label -> osrsWikiImage("Oak_logs.png")
+            "willow" in label -> osrsWikiImage("Willow_logs.png")
+            "maple" in label -> osrsWikiImage("Maple_logs.png")
+            "yew" in label -> osrsWikiImage("Yew_logs.png")
+            "magic" in label -> osrsWikiImage("Magic_logs.png")
+            "fruit" in label -> osrsWikiImage("Pineapple.png")
+            "teak" in label -> osrsWikiImage("Teak_logs.png")
+            "mahogany" in label -> osrsWikiImage("Mahogany_logs.png")
+            "cactus" in label -> osrsWikiImage("Cactus_spine.png")
+            "calquat" in label -> osrsWikiImage("Calquat_fruit.png")
             else -> osrsWikiImage("Sleeping_cap.png")
         }
     }
+
     return when (action.route) {
-        "puzzle", "web/puzzle" -> osrsWikiImage("Puzzle_box.png")
-        "web/light" -> osrsWikiImage("Light_box.png")
+        "puzzle", "web/puzzle" -> osrsWikiImage("Puzzle_box_zulrah.png")
+        "lightbox", "web/light" -> osrsWikiImage("Light_box.png")
         "web/prices" -> osrsWikiImage("Coins_10000.png")
-        "web/wiki" -> osrsWikiImage("Book.png")
+        "web/wiki" -> osrsWikiImage("Old School RuneScape Wiki logo (alternate).png")
         "web/wise" -> osrsWikiImage("Wise_Old_Man.png")
-        "web/stars" -> osrsWikiImage("Shooting_Star.png")
+        "web/stars" -> osrsWikiImage("Shooting_Star_Display.png")
         "web/skills" -> osrsWikiImage("Max_cape.png")
         "web/dps" -> osrsWikiImage("Dragon_scimitar.png")
         "web/quests" -> osrsWikiImage("Quest_point_cape.png")
         "web/diaries" -> osrsWikiImage("Achievement_diary_cape.png")
         "web/clues" -> osrsWikiImage("Clue_scroll_(hard).png")
         "web/news" -> osrsWikiImage("Newspaper.png")
-        else -> osrsWikiImage("Book.png")
+        "timers" -> osrsWikiImage("Sleeping_cap.png")
+        else -> if (action.icon.startsWith("http")) action.icon else osrsWikiImage("Book.png")
     }
 }
 
@@ -69,7 +84,7 @@ fun WikiIcon(
                         instanceFollowRedirects = true
                         connectTimeout = 8000
                         readTimeout = 10000
-                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.3.1")
+                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.4.0")
                     }
                     val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) }
                     connection.disconnect()
