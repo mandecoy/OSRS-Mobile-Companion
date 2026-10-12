@@ -60,6 +60,13 @@ private val TimerWidgetOptions = listOf(
     WidgetOption("timers", "Open Timers", "Watch.png", route = "timers")
 )
 
+private val ReminderWidgetOptions = listOf(
+    WidgetOption("reminders", "Open Reminders", "Watch.png", route = "timers"),
+    WidgetOption("reminder_tears", "Tears of Guthix (weekly)", "Tears_of_Guthix.png", route = "reminder/tears"),
+    WidgetOption("reminder_zaff", "Zaff battlestaves (daily)", "Battlestaff.png", route = "reminder/zaff"),
+    WidgetOption("reminder_misc", "Manage Miscellania (24h)", "Coffer.png", route = "reminder/miscellania")
+)
+
 private val FarmWidgetOptions = listOf(
     WidgetOption("herb", "Herb Run", "Ranarr_weed.png", seconds = 80 * 60),
     WidgetOption("bird", "Birdhouse Run", "Bird_house.png", seconds = 50 * 60),
@@ -114,7 +121,7 @@ fun QuickWidgetMenuScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Each slot is independent. Choose Timers, Farm Runs, or Tools, then pick the exact shortcut you want.",
+                    "Each slot is independent. Choose Timers (custom timers, Farming, Dailies/Weeklies) or Tools, then pin the shortcut you want.",
                     color = QParchment
                 )
             }
@@ -213,19 +220,30 @@ private fun QuickSlotCard(
                 ) {
                     when (menuPage) {
                         "root" -> {
-                            CategoryMenuItem("Timers", "Watch.png") { menuPage = "timers" }
-                            CategoryMenuItem("Farm Runs", "Tool_leprechaun.png") { menuPage = "farm" }
+                            CategoryMenuItem("Timers", "Watch.png") { menuPage = "timer_categories" }
                             CategoryMenuItem("Tools", "Wrench.png") { menuPage = "tools" }
                         }
-                        "timers" -> {
+                        "timer_categories" -> {
                             BackMenuItem { menuPage = "root" }
+                            CategoryMenuItem("Timers / AFK", "Watch.png") { menuPage = "timers" }
+                            CategoryMenuItem("Farming", "Tool_leprechaun.png") { menuPage = "farm" }
+                            CategoryMenuItem("Dailies / Weeklies", "Tears_of_Guthix.png") { menuPage = "reminders" }
+                        }
+                        "timers" -> {
+                            BackMenuItem { menuPage = "timer_categories" }
                             TimerWidgetOptions.forEach { option ->
                                 OptionMenuItem(option) { saveOption(option) }
                             }
                         }
                         "farm" -> {
-                            BackMenuItem { menuPage = "root" }
+                            BackMenuItem { menuPage = "timer_categories" }
                             FarmWidgetOptions.forEach { option ->
+                                OptionMenuItem(option) { saveOption(option) }
+                            }
+                        }
+                        "reminders" -> {
+                            BackMenuItem { menuPage = "timer_categories" }
+                            ReminderWidgetOptions.forEach { option ->
                                 OptionMenuItem(option) { saveOption(option) }
                             }
                         }
