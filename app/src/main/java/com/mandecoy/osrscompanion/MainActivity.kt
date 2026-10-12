@@ -131,6 +131,9 @@ private val WebTools = mapOf(
     "quests" to WebTool("Quests", "https://oldschool.runescape.wiki/w/Quests", "Quest list, requirements, and guides."),
     "diaries" to WebTool("Achievement Diaries", "https://oldschool.runescape.wiki/w/Achievement_Diary", "Achievement Diary requirements and rewards."),
     "news" to WebTool("Old School News", "https://secure.runescape.com/m=news/archive?oldschool=1", "Official Old School RuneScape news archive."),
+    "theoatrix_skills" to WebTool("Theoatrix Skill Guides", "https://www.theoatrix.net/skill-guides", "Skill levelling guides from Theoatrix."),
+    "theoatrix_afk" to WebTool("Theoatrix AFK Methods", "https://www.theoatrix.net/osrs-guides/categories/most-afk-methods", "AFK methods and guides from Theoatrix."),
+    "wiki_guides" to WebTool("OSRS Wiki Guides", "https://oldschool.runescape.wiki/w/Category:Guides", "RuneScape Wiki guides directory."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
@@ -155,6 +158,7 @@ private val Tools = listOf(
     Tool("Quests", "Quest list + requirements", "web/quests", osrsWikiImage("Quest_point_cape.png")),
     Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", osrsWikiImage("Achievement_diary_cape.png")),
     Tool("Clue Helper", "Treasure trail references", "web/clues", osrsWikiImage("Clue_scroll_(hard).png")),
+    Tool("Guides", "Theoatrix + OSRS Wiki", "guides", osrsWikiImage("Book_of_knowledge.png")),
     Tool("Old School News", "Official Jagex news archive", "web/news", osrsWikiImage("Newspaper.png")),
     Tool("Quick Widgets", "Customize four shortcuts", "quick", osrsWikiImage("Wrench.png")),
     Tool("About", "Source + privacy", "about", osrsWikiImage("Book.png"))
@@ -188,6 +192,7 @@ private val QuickChoices = listOf(
     QuickAction("quests", "Quests", osrsWikiImage("Quest_point_cape.png"), route = "web/quests"),
     QuickAction("diaries", "Achievement Diaries", osrsWikiImage("Achievement_diary_cape.png"), route = "web/diaries"),
     QuickAction("clues", "Clue Helper", osrsWikiImage("Clue_scroll_(hard).png"), route = "web/clues"),
+    QuickAction("guides", "Guides", osrsWikiImage("Book_of_knowledge.png"), route = "guides"),
     QuickAction("news", "Old School News", osrsWikiImage("Newspaper.png"), route = "web/news")
 )
 object QuickActionStore {
@@ -293,6 +298,7 @@ private fun CompanionApp() {
             }
             composable("quick") { QuickWidgetMenuScreen(nav) }
             composable("puzzle") { NativePuzzleScreen(nav) }
+            composable("guides") { GuidesScreen(nav) }
             composable("lightbox") { NativeLightBoxScreen(nav) }
             composable("about") { AboutScreen(nav) }
             composable("web/{key}") { entry ->
@@ -1223,6 +1229,43 @@ private fun PuzzleBrowserScreen(nav: NavHostController, tool: WebTool) {
                 color = TextLight,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun GuidesScreen(nav: NavHostController) {
+    val guideItems = listOf(
+        Triple("Theoatrix Skill Guides", "Levelling guides for OSRS skills", "theoatrix_skills"),
+        Triple("Theoatrix AFK Methods", "Low-attention training methods", "theoatrix_afk"),
+        Triple("OSRS Wiki Guides", "Community-maintained guides by topic", "wiki_guides")
+    )
+    Screen(nav, "Guides") { padding ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Text("Choose a guide collection. Guides open inside Companion.",
+                    color = Parchment)
+            }
+            items(guideItems.size) { i ->
+                val entry = guideItems[i]
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                        .clickable { nav.navigate("web/" + entry.third) },
+                    colors = CardDefaults.cardColors(containerColor = Stone),
+                    border = BorderStroke(1.dp, RuneGoldDark)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Text(entry.first, color = RuneGold, fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp)
+                        Spacer(Modifier.height(5.dp))
+                        Text(entry.second, color = Parchment, fontSize = 12.sp)
+                    }
+                }
+            }
         }
     }
 }
