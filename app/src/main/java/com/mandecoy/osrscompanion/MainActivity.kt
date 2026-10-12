@@ -849,7 +849,8 @@ private fun QuickActionsScreen(nav: NavHostController) {
 private fun NativePuzzleScreen(nav: NavHostController) {
     val context = LocalContext.current
     val handler = remember { Handler(Looper.getMainLooper()) }
-    var analysis by remember { mutableStateOf<PuzzleAnalysis?>(null) }
+    val lastSession = remember { PuzzleBubbleStore.loadForEditing(context) }
+    var analysis by remember { mutableStateOf(lastSession) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     // moveIndex is always the start of a five-move page.
@@ -860,9 +861,20 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     var boardVerified by remember { mutableStateOf(false) }
     var editingTiles by remember { mutableStateOf(false) }
     var selectedTilePosition by remember { mutableIntStateOf(-1) }
-    var correctedBoard by remember { mutableStateOf(IntArray(25) { it }) }
+    val lastWorkingBoard = remember(lastSession) {
+        lastSession?.let { PuzzleEngine.savedBoardForScreenshot(context, it) }
+    }
+    var correctedBoard by remember {
+        mutableStateOf(
+            lastWorkingBoard?.copyOf() ?: lastSession?.board?.copyOf()
+            ?: IntArray(25) { it }
+        )
+    }
     var previousCorrection by remember { mutableStateOf<IntArray?>(null) }
-    var correctionMade by remember { mutableStateOf(false) }
+    var correctionMade by remember {
+        mutableStateOf(lastWorkingBoard != null && lastSession != null &&
+            !lastWorkingBoard.contentEquals(lastSession.board))
+    }
     var recognitionNote by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
