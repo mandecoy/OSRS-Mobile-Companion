@@ -2,6 +2,13 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.11
+
+### Guides
+- Add OSRS Wiki Money Making Guide as a fourth link in the Guides hub.
+- Replace OSRS Wiki's general guides directory with the Strategy Guides section.
+- Change Guides tool and Quick Widget artwork to the OSRS Cake of guidance inventory icon, including previously pinned Guides shortcuts.
+
 ## 0.5.10
 
 ### Puzzle tile recognition and manual correction
