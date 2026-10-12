@@ -2,6 +2,19 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.8
+
+### Puzzle Box reliability
+- A valid solution for an incorrectly recognized board is not trustworthy. The solver now first shows the REAL uploaded puzzle beside its reconstructed board and requires explicit verification before displaying any tap instructions.
+- Added picture-tile reassignment: choose a tile in the screenshot and where it belongs in the completed picture. Tile assignments swap uniquely, and users can recalculate with corrected assignments.
+- Parity repairs are flagged as speculative, not quietly treated as accurate tile identification.
+- The floating puzzle overlay is unavailable until puzzle recognition is verified.
+- The move solver is tested with generated legal 5×5 scrambles and replayed tap sequences; these tests are part of Android build CI.
+- Original screenshot needed to reproduce recognition issues with a specific live puzzle; automatic matching can still be imperfect.
+
+### Guides
+- Added a Guides hub and Quick Widget option with Theoatrix Skill Guides, Theoatrix AFK Methods, and OSRS Wiki Guides.
+
 ## 0.5.7
 
 ### Fixed
