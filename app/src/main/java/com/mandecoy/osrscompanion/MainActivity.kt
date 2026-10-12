@@ -843,6 +843,12 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     // moveIndex is always the start of a five-move page.
     var moveIndex by remember { mutableIntStateOf(0) }
     var fixingGap by remember { mutableStateOf(false) }
+    // Never present tap instructions as verified until the real screenshot has
+    // been visually compared with the inferred picture.
+    var boardVerified by remember { mutableStateOf(false) }
+    var editingTiles by remember { mutableStateOf(false) }
+    var selectedTilePosition by remember { mutableIntStateOf(-1) }
+    var correctedBoard by remember { mutableStateOf(IntArray(25) { it }) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -851,6 +857,9 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         loading = true
         moveIndex = 0
         fixingGap = false
+        boardVerified = false
+        editingTiles = false
+        selectedTilePosition = -1
 
         Thread {
             val bitmap = try {
@@ -871,6 +880,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     error = "I couldn't reliably read that puzzle. Make sure the whole open 5×5 puzzle box is visible in the screenshot and try again."
                 } else {
                     analysis = result
+                    correctedBoard = result.board.copyOf()
                 }
             }
         }.start()
@@ -912,6 +922,175 @@ private fun NativePuzzleScreen(nav: NavHostController) {
             }
 
             analysis?.let { solved ->
+                if (!boardVerified) {
+                    item {
+                        Text(
+                            "VERIFY BEFORE TAPPING ANY TILES",
+                            color = RuneGold, fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    item {
+                        Text(
+                            "Compare the actual OSRS screenshot (left) against the tile arrangement reconstructed by this app (right). If ANY tile is different, do not follow the solution. Fix the recognized tiles first.",
+                            color = TextLight, fontSize = 13.sp
+                        )
+                    }
+                    if (solved.inferredParityRepair) {
+                        item {
+                            Text(
+                                "WARNING: the screenshot recognition found an impossible board and had to GUESS a correction. Please inspect every tile before confirming.",
+                                color = Color(0xffffaa80), fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    item { PuzzleRecognitionComparison(solved) }
+                    item {
+                        Button(
+                            onClick = {
+                                boardVerified = true
+                                editingTiles = false
+                                fixingGap = false
+                                error = null
+                                PuzzleBubbleStore.save(context.applicationContext, solved, 0)
+                            },
+                            enabled = !loading,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = RuneGold, contentColor = Color.Black
+                            )
+                        ) {
+                            Text("Yes, all 25 cells match — Show solution")
+                        }
+                    }
+                    item {
+                        OutlinedButton(
+                            onClick = {
+                                editingTiles = !editingTiles
+                                fixingGap = false
+                                selectedTilePosition = -1
+                                correctedBoard = solved.board.copyOf()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (editingTiles) "Close tile correction" else "Wrong tiles? Edit recognized tile positions")
+                        }
+                    }
+                    if (editingTiles) {
+                        item {
+                            PuzzleTileAssignmentPicker(
+                                screenshot = solved.preview,
+                                reference = solved.reference,
+                                board = correctedBoard,
+                                selectedPosition = selectedTilePosition,
+                                onSelectPosition = { selectedTilePosition = it },
+                                onChooseTile = { targetPosition ->
+                                    if (selectedTilePosition in 0..24) {
+                                        val newBoard = correctedBoard.copyOf()
+                                        val other = newBoard.indexOf(targetPosition)
+                                        if (other >= 0) {
+                                            val previous = newBoard[selectedTilePosition]
+                                            newBoard[selectedTilePosition] = targetPosition
+                                            newBoard[other] = previous
+                                            correctedBoard = newBoard
+                                        }
+                                        selectedTilePosition = -1
+                                    }
+                                }
+                            )
+                        }
+                        item {
+                            Button(
+                                onClick = {
+                                    loading = true
+                                    val board = correctedBoard.copyOf()
+                                    Thread {
+                                        val corrected = try {
+                                            PuzzleEngine.solveCorrectedBoard(solved, board)
+                                        } catch (_: Exception) { null }
+                                        handler.post {
+                                            loading = false
+                                            if (corrected == null) {
+                                                error = "The edited board is unsolvable. Verify the empty square and picture tile labels; an odd-parity arrangement cannot be reached by sliding tiles."
+                                            } else {
+                                                analysis = corrected
+                                                boardVerified = false
+                                                editingTiles = false
+                                                moveIndex = 0
+                                                error = null
+                                                PuzzleBubbleStore.save(context.applicationContext, corrected, 0)
+                                            }
+                                        }
+                                    }.start()
+                                },
+                                enabled = !loading,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = RuneGold, contentColor = Color.Black
+                                )
+                            ) {
+                                Text(if (loading) "Recalculating..." else "Recalculate using corrected tiles")
+                            }
+                        }
+                    }
+                    item {
+                        OutlinedButton(
+                            onClick = {
+                                fixingGap = !fixingGap
+                                editingTiles = false
+                            },
+                            enabled = !loading,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (fixingGap) "Cancel empty-square correction" else "Wrong EMPTY cell? Tap to correct")
+                        }
+                    }
+                    if (fixingGap) {
+                        item {
+                            Text("Tap the actual empty square on your original OSRS screenshot:",
+                                color = Parchment)
+                        }
+                        item {
+                            EmptySpacePicker(solved.preview) { position ->
+                                if (!loading) {
+                                    loading = true
+                                    fixingGap = false
+                                    Thread {
+                                        val corrected = try {
+                                            PuzzleEngine.correctEmptyPosition(solved, position)
+                                        } catch (_: Exception) { null }
+                                        handler.post {
+                                            loading = false
+                                            if (corrected == null) {
+                                                error = "Couldn't read a solvable board with that empty square. Try Edit recognized tile positions."
+                                            } else {
+                                                analysis = corrected
+                                                correctedBoard = corrected.board.copyOf()
+                                                boardVerified = false
+                                                moveIndex = 0
+                                                error = null
+                                            }
+                                        }
+                                    }.start()
+                                }
+                            }
+                        }
+                    }
+                } else {
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            boardVerified = false
+                            editingTiles = false
+                            fixingGap = false
+                            moveIndex = 0
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Recheck picture tiles against original screenshot")
+                    }
+                }
                 item {
                     AnnotatedPuzzlePreview(solved = solved, start = moveIndex)
                 }
@@ -985,6 +1164,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                         } else {
                                             error = null
                                             analysis = corrected
+                                            correctedBoard = corrected.board.copyOf()
+                                            boardVerified = false
                                             moveIndex = 0
                                         }
                                     }
@@ -1173,12 +1354,15 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             error = null
                             moveIndex = 0
                             fixingGap = false
+                            boardVerified = false
+                            editingTiles = false
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Start over", color = Parchment)
                     }
                 }
+                } // end verified board instructions
             }
         }
     }
