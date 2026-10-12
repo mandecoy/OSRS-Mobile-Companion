@@ -56,8 +56,8 @@ data class WidgetOption(
 )
 
 private val TimerWidgetOptions = listOf(
-    WidgetOption("custom", "Custom Timer", "Sleeping_cap.png", customTimer = true),
-    WidgetOption("timers", "Open Timers", "Sleeping_cap.png", route = "timers")
+    WidgetOption("custom", "Custom Timer", "Watch.png", customTimer = true),
+    WidgetOption("timers", "Open Timers", "Watch.png", route = "timers")
 )
 
 private val FarmWidgetOptions = listOf(
@@ -80,7 +80,7 @@ private val FarmWidgetOptions = listOf(
 )
 
 private val ToolWidgetOptions = listOf(
-    WidgetOption("floating", "Floating Companion", "Watch.png", route = "floating"),
+    WidgetOption("floating", "Floating Companion", "Magical_orb.png", route = "floating"),
     WidgetOption("ge_tools", "GE Tools", "Grand_Exchange_Clerk.png", route = "ge_tools"),
     WidgetOption("high_alch", "High Alch", "High_Level_Alchemy.png", route = "high_alch"),
     WidgetOption("portfolio", "Portfolio", "Platinum_token.png", route = "portfolio"),
@@ -213,7 +213,7 @@ private fun QuickSlotCard(
                 ) {
                     when (menuPage) {
                         "root" -> {
-                            CategoryMenuItem("Timers", "Sleeping_cap.png") { menuPage = "timers" }
+                            CategoryMenuItem("Timers", "Watch.png") { menuPage = "timers" }
                             CategoryMenuItem("Farm Runs", "Tool_leprechaun.png") { menuPage = "farm" }
                             CategoryMenuItem("Tools", "Wrench.png") { menuPage = "tools" }
                         }
@@ -286,7 +286,7 @@ private fun QuickSlotCard(
                                     QuickAction(
                                         id = "custom_" + slot + "_" + total,
                                         label = name,
-                                        icon = osrsWikiImage("Sleeping_cap.png"),
+                                        icon = osrsWikiImage("Watch.png"),
                                         seconds = total
                                     )
                                 )
