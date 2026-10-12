@@ -216,34 +216,29 @@ internal fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap 
 @Composable
 fun PuzzleRecognitionComparison(solved: PuzzleAnalysis) {
     val predicted = remember(solved) { renderPuzzleAtMove(solved, 0) }
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text("REAL SCREENSHOT", color = OverlayParchment, fontSize = 11.sp,
-                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth())
-            Image(
-                bitmap = solved.preview.asImageBitmap(),
-                contentDescription = "Original screenshot showing the true tile arrangement",
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                    .border(1.dp, OverlayGold)
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text("APP RECOGNITION", color = OverlayParchment, fontSize = 11.sp,
-                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth())
-            Image(
-                bitmap = predicted.asImageBitmap(),
-                contentDescription = "App-recognized tile arrangement to compare",
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                    .border(1.dp, OverlayGold)
-            )
-        }
+        Text("REAL SCREENSHOT", color = OverlayParchment, fontSize = 14.sp,
+            fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
+        Image(
+            bitmap = solved.preview.asImageBitmap(),
+            contentDescription = "Full-size original OSRS puzzle screenshot",
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                .border(2.dp, OverlayGold)
+        )
+        Text("APP RECOGNITION — EVERY TILE MUST MATCH", color = OverlayParchment,
+            fontSize = 14.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.fillMaxWidth())
+        Image(
+            bitmap = predicted.asImageBitmap(),
+            contentDescription = "Full-size screenshot reconstruction from recognized tiles",
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                .border(2.dp, OverlayGold)
+        )
     }
 }
 
