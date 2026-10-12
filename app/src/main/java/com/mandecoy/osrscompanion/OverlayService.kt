@@ -564,9 +564,25 @@ class FloatingOverlayService : Service() {
         }
         timerEditPanel = adjustmentArea
 
+        fun keepTimerOnScreen() {
+            root.post {
+                if (timerView !== root) return@post
+                val maxY = (resources.displayMetrics.heightPixels - root.height - dp(24))
+                    .coerceAtLeast(0)
+                params.y = params.y.coerceIn(0, maxY)
+                params.x = params.x.coerceIn(
+                    0, (resources.displayMetrics.widthPixels - panelWidth).coerceAtLeast(0)
+                )
+                try {
+                    windowManager.updateViewLayout(root, params)
+                    FloatingPrefs.saveTimerPosition(this, params.x, params.y)
+                } catch (_: Exception) {}
+            }
+        }
         val toggle = overlayButton("Adjust Time ▾") {
             adjustmentArea.visibility =
                 if (adjustmentArea.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            keepTimerOnScreen()
         }
         root.addView(actionRow(
             toggle,
@@ -647,6 +663,15 @@ class FloatingOverlayService : Service() {
 
     private fun showTimerEditor() {
         timerEditPanel?.visibility = View.VISIBLE
+        timerView?.post {
+            val view = timerView ?: return@post
+            val params = timerParams ?: return@post
+            params.y = params.y.coerceIn(
+                0, (resources.displayMetrics.heightPixels - view.height - dp(24)).coerceAtLeast(0)
+            )
+            try { windowManager.updateViewLayout(view, params) } catch (_: Exception) {}
+            FloatingPrefs.saveTimerPosition(this, params.x, params.y)
+        }
     }
 
     private fun refreshTimerDisplay() {
@@ -789,11 +814,15 @@ class FloatingOverlayService : Service() {
                     val dx = (event.rawX - touchX).toInt()
                     val dy = (event.rawY - touchY).toInt()
                     if (abs(dx) > dp(3) || abs(dy) > dp(3)) moved = true
-                    params.x = max(0, startX + dx)
-                    params.y = max(0, startY + dy)
                     try {
                         val target: View? = if (view === bubbleView) bubbleView else timerView
                         if (target != null) {
+                            params.x = (startX + dx).coerceIn(
+                                0, (resources.displayMetrics.widthPixels - target.width).coerceAtLeast(0)
+                            )
+                            params.y = (startY + dy).coerceIn(
+                                0, (resources.displayMetrics.heightPixels - target.height - dp(24)).coerceAtLeast(0)
+                            )
                             windowManager.updateViewLayout(target, params)
                         }
                     } catch (_: Exception) {
