@@ -44,6 +44,7 @@ fun iconUrlForAction(action: QuickAction): String {
             "mahogany" in label -> osrsWikiImage("Mahogany_logs.png")
             "cactus" in label -> osrsWikiImage("Cactus_spine.png")
             "calquat" in label -> osrsWikiImage("Calquat_fruit.png")
+            "coral" in label -> osrsWikiImage("Elkhorn_coral.png")
             else -> osrsWikiImage("Sleeping_cap.png")
         }
     }
