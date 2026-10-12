@@ -1,7 +1,10 @@
 package com.mandecoy.osrscompanion
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -696,6 +699,25 @@ fun MarketItemDetailScreen(nav: NavHostController, itemId: Int) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(if (isWatched) "Remove from watchlist" else "Add to watchlist")
+                    }
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            val uri = Uri.parse("https://prices.runescape.wiki/osrs/item/" + item.id)
+                            try {
+                                CustomTabsIntent.Builder()
+                                    .setShowTitle(true)
+                                    .build()
+                                    .launchUrl(context, uri)
+                            } catch (_: Exception) {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("View on OSRS Prices Wiki ↗")
                     }
                 }
 

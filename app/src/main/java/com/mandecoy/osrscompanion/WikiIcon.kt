@@ -34,16 +34,16 @@ fun iconUrlForAction(action: QuickAction): String {
             "allot" in label -> osrsWikiImage("Watermelon.png")
             "hop" in label -> osrsWikiImage("Jute_fibre.png")
             "bush" in label -> osrsWikiImage("White_berries.png")
-            "oak" in label -> osrsWikiImage("Oak_logs.png")
-            "willow" in label -> osrsWikiImage("Willow_logs.png")
-            "maple" in label -> osrsWikiImage("Maple_logs.png")
-            "yew" in label -> osrsWikiImage("Yew_logs.png")
-            "magic" in label -> osrsWikiImage("Magic_logs.png")
-            "fruit" in label -> osrsWikiImage("Pineapple.png")
-            "teak" in label -> osrsWikiImage("Teak_logs.png")
-            "mahogany" in label -> osrsWikiImage("Mahogany_logs.png")
-            "cactus" in label -> osrsWikiImage("Cactus_spine.png")
-            "calquat" in label -> osrsWikiImage("Calquat_fruit.png")
+            "oak" in label -> osrsWikiImage("Oak_sapling.png")
+            "willow" in label -> osrsWikiImage("Willow_sapling.png")
+            "maple" in label -> osrsWikiImage("Maple_sapling.png")
+            "yew" in label -> osrsWikiImage("Yew_sapling.png")
+            "magic" in label -> osrsWikiImage("Magic_sapling.png")
+            "fruit" in label -> osrsWikiImage("Pineapple_sapling.png")
+            "teak" in label -> osrsWikiImage("Teak_sapling.png")
+            "mahogany" in label -> osrsWikiImage("Mahogany_sapling.png")
+            "cactus" in label -> osrsWikiImage("Cactus_seed.png")
+            "calquat" in label -> osrsWikiImage("Calquat_sapling.png")
             "coral" in label -> osrsWikiImage("Elkhorn_coral.png")
             else -> osrsWikiImage("Sleeping_cap.png")
         }
@@ -88,7 +88,7 @@ fun WikiIcon(
                         instanceFollowRedirects = true
                         connectTimeout = 8000
                         readTimeout = 10000
-                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.5.1")
+                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.5.4")
                     }
                     val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) }
                     connection.disconnect()

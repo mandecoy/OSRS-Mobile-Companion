@@ -67,16 +67,16 @@ private val FarmWidgetOptions = listOf(
     WidgetOption("allotments", "Allotments", "Watermelon.png", seconds = 40 * 60),
     WidgetOption("hops", "Hops", "Jute_fibre.png", seconds = 40 * 60),
     WidgetOption("bushes", "Bushes", "White_berries.png", seconds = 100 * 60),
-    WidgetOption("oak", "Oak Tree", "Oak_logs.png", seconds = 200 * 60),
-    WidgetOption("willow", "Willow Tree", "Willow_logs.png", seconds = 240 * 60),
-    WidgetOption("maple", "Maple Tree", "Maple_logs.png", seconds = 320 * 60),
-    WidgetOption("yew", "Yew Tree", "Yew_logs.png", seconds = 400 * 60),
-    WidgetOption("magic", "Magic Tree", "Magic_logs.png", seconds = 480 * 60),
-    WidgetOption("fruit", "Fruit Tree", "Pineapple.png", seconds = 960 * 60),
-    WidgetOption("teak", "Teak Tree", "Teak_logs.png", seconds = 4480 * 60),
-    WidgetOption("mahogany", "Mahogany Tree", "Mahogany_logs.png", seconds = 5120 * 60),
-    WidgetOption("cactus", "Cactus", "Cactus_spine.png", seconds = 560 * 60),
-    WidgetOption("calquat", "Calquat", "Calquat_fruit.png", seconds = 1280 * 60)
+    WidgetOption("oak", "Oak Tree", "Oak_sapling.png", seconds = 200 * 60),
+    WidgetOption("willow", "Willow Tree", "Willow_sapling.png", seconds = 240 * 60),
+    WidgetOption("maple", "Maple Tree", "Maple_sapling.png", seconds = 320 * 60),
+    WidgetOption("yew", "Yew Tree", "Yew_sapling.png", seconds = 400 * 60),
+    WidgetOption("magic", "Magic Tree", "Magic_sapling.png", seconds = 480 * 60),
+    WidgetOption("fruit", "Fruit Tree", "Pineapple_sapling.png", seconds = 960 * 60),
+    WidgetOption("teak", "Teak Tree", "Teak_sapling.png", seconds = 4480 * 60),
+    WidgetOption("mahogany", "Mahogany Tree", "Mahogany_sapling.png", seconds = 5120 * 60),
+    WidgetOption("cactus", "Cactus", "Cactus_seed.png", seconds = 560 * 60),
+    WidgetOption("calquat", "Calquat", "Calquat_sapling.png", seconds = 1280 * 60)
 )
 
 private val ToolWidgetOptions = listOf(

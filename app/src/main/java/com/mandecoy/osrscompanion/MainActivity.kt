@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -446,25 +447,25 @@ private fun QuickMiniCard(
     }
 }
 
-data class FarmPreset(val label: String, val seconds: Long, val icon: String)
+data class FarmPreset(val label: String, val seconds: Long, val iconFile: String)
 
 private val FarmPresets = listOf(
-    FarmPreset("Herb run", 80 * 60, "🌿"),
-    FarmPreset("Birdhouse run", 50 * 60, "🐦"),
-    FarmPreset("Coral", 160 * 60, "🪸"),
-    FarmPreset("Allotments", 40 * 60, "🌱"),
-    FarmPreset("Hops", 40 * 60, "🌱"),
-    FarmPreset("Bushes", 100 * 60, "🌿"),
-    FarmPreset("Oak tree", 200 * 60, "🌳"),
-    FarmPreset("Willow tree", 240 * 60, "🌳"),
-    FarmPreset("Maple tree", 320 * 60, "🌳"),
-    FarmPreset("Yew tree", 400 * 60, "🌳"),
-    FarmPreset("Magic tree", 480 * 60, "🌳"),
-    FarmPreset("Fruit tree", 960 * 60, "🍎"),
-    FarmPreset("Teak tree", 4480 * 60, "🌳"),
-    FarmPreset("Mahogany tree", 5120 * 60, "🌳"),
-    FarmPreset("Cactus", 560 * 60, "🌵"),
-    FarmPreset("Calquat", 1280 * 60, "🌳")
+    FarmPreset("Herb run", 80 * 60, "Ranarr_weed.png"),
+    FarmPreset("Birdhouse run", 50 * 60, "Bird_house.png"),
+    FarmPreset("Coral", 160 * 60, "Elkhorn_coral.png"),
+    FarmPreset("Allotments", 40 * 60, "Watermelon.png"),
+    FarmPreset("Hops", 40 * 60, "Jute_fibre.png"),
+    FarmPreset("Bushes", 100 * 60, "White_berries.png"),
+    FarmPreset("Oak tree", 200 * 60, "Oak_sapling.png"),
+    FarmPreset("Willow tree", 240 * 60, "Willow_sapling.png"),
+    FarmPreset("Maple tree", 320 * 60, "Maple_sapling.png"),
+    FarmPreset("Yew tree", 400 * 60, "Yew_sapling.png"),
+    FarmPreset("Magic tree", 480 * 60, "Magic_sapling.png"),
+    FarmPreset("Fruit tree", 960 * 60, "Pineapple_sapling.png"),
+    FarmPreset("Teak tree", 4480 * 60, "Teak_sapling.png"),
+    FarmPreset("Mahogany tree", 5120 * 60, "Mahogany_sapling.png"),
+    FarmPreset("Cactus", 560 * 60, "Cactus_seed.png"),
+    FarmPreset("Calquat", 1280 * 60, "Calquat_sapling.png")
 )
 
 @Composable
@@ -620,8 +621,14 @@ private fun TimersScreen(nav: NavHostController) {
                         Modifier.fillMaxWidth().padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        WikiIcon(
+                            osrsWikiImage(preset.iconFile),
+                            preset.label,
+                            38.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(preset.icon + " " + preset.label, color = TextLight, fontWeight = FontWeight.Bold)
+                            Text(preset.label, color = TextLight, fontWeight = FontWeight.Bold)
                             Text(formatSeconds(preset.seconds), color = Parchment, fontSize = 12.sp)
                         }
                         Button(
@@ -1075,6 +1082,17 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         settings.domStorageEnabled = true
                         settings.allowContentAccess = true
                         settings.setSupportZoom(true)
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+
+                        if (tool.url.contains("secure.runescape.com")) {
+                            // Jagex's legacy news archive is desktop-width and otherwise
+                            // opens cropped/over-zoomed inside a phone WebView.
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+                            settings.textZoom = 100
+                        }
+
                         webViewClient = WebViewClient()
                         webChromeClient = object : WebChromeClient() {
                             override fun onShowFileChooser(
@@ -1104,7 +1122,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.5.3", color = Parchment)
+            Text("Version 0.5.4", color = Parchment)
             Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
