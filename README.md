@@ -2,15 +2,15 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.12**  
+**Current stable version: 0.5.13**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
 
 - Custom timers with separate minute and second fields
 - Non-focus floating companion overlay that stays above OSRS
-- Opaque, higher-contrast floating timer with a large countdown, readable buttons, drag handle and screen-edge clamping
-- Adjust floating time without taking input focus away from OSRS: add/subtract 1 minute or 10 seconds, choose 1/5/10/15-minute presets, and toggle repeat
+- Opaque floating timer with eye-toggle sizes: compact 142dp countdown-only strip or medium 192dp panel with Pause/Restart/Stop and expandable Edit controls
+- From the medium floating timer, edit remaining time ±1 minute / ±10 seconds, choose 1/5/10/15-minute presets, or toggle repeat; switching sizes preserves the live countdown and OSRS focus
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
 - Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
 - Manage Miscellania reminder with customizable 1-7-day interval and Done now reset
