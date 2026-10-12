@@ -18,7 +18,7 @@ data class PuzzleAnalysis(
     val board: IntArray,
     val moves: List<Int>,
     val matchDifference: Float,
-    /** True when an odd-parity image match required a speculative correction. */
+    /** True when recognized tiles have impossible parity and need manual correction. */
     val inferredParityRepair: Boolean = false
 )
 
@@ -92,20 +92,13 @@ object PuzzleEngine {
         val board = winnerAssignment ?: return null
         val costs = winnerCosts ?: return null
 
-        // A parity error means screenshot recognition was not correct. A
-        // minimum-cost tile swap only gives us a GUESS, never proof of which
-        // two picture tiles OSRS actually has. Flag it for the review screen.
-        var repairedParity = false
-        if (!solvable(board)) {
-            val swap = leastExpensiveParityFix(board, costs) ?: return null
-            val tmp = board[swap.first]
-            board[swap.first] = board[swap.second]
-            board[swap.second] = tmp
-            repairedParity = true
-        }
-        if (!solvable(board)) return null
-
-        val moves = findSolution(board) ?: return null
+        // RuneLite receives exact tile IDs from the game client; this app
+        // must infer IDs from an image. Never alter the detected tile labels
+        // silently to force solvability: that can produce a perfectly legal
+        // solution for a board that does not exist in OSRS.
+        val recognitionImpossible = !solvable(board)
+        val moves = if (recognitionImpossible) emptyList()
+                    else findSolution(board) ?: emptyList()
         return PuzzleAnalysis(
             puzzleName = ref.name,
             preview = cropped,
@@ -113,7 +106,7 @@ object PuzzleEngine {
             board = board.copyOf(),
             moves = moves,
             matchDifference = winnerMean,
-            inferredParityRepair = repairedParity
+            inferredParityRepair = recognitionImpossible
         )
     }
 
@@ -133,19 +126,12 @@ object PuzzleEngine {
             }
         }
         val assignment = minimumAssignmentWithForcedGap(costs, gapPosition)
-        var parityRepaired = false
-        if (!solvable(assignment)) {
-            val swap = leastExpensiveParityFix(assignment, costs) ?: return null
-            val temp = assignment[swap.first]
-            assignment[swap.first] = assignment[swap.second]
-            assignment[swap.second] = temp
-            parityRepaired = true
-        }
-        if (!solvable(assignment)) return null
-        val solution = findSolution(assignment) ?: return null
+        val recognitionImpossible = !solvable(assignment)
+        val solution = if (recognitionImpossible) emptyList()
+                       else findSolution(assignment) ?: emptyList()
         return current.copy(
             board = assignment, moves = solution,
-            inferredParityRepair = parityRepaired
+            inferredParityRepair = recognitionImpossible
         )
     }
 
