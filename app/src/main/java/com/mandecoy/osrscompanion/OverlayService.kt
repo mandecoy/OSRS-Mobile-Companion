@@ -132,6 +132,9 @@ class FloatingOverlayService : Service() {
     private var timerParams: WindowManager.LayoutParams? = null
     private var countdownText: TextView? = null
     private var pauseButton: AndroidButton? = null
+    private var timerStatusText: TextView? = null
+    private var timerSettingText: TextView? = null
+    private var timerEditPanel: LinearLayout? = null
     private var timerEndAt = 0L
     private var timerRemaining = 0L
     private var timerDuration = 0L
@@ -145,13 +148,13 @@ class FloatingOverlayService : Service() {
             if (!timerPaused) {
                 val remaining = max(0L, timerEndAt - System.currentTimeMillis())
                 timerRemaining = remaining
-                countdownText?.text = formatMillis(remaining)
+                refreshTimerDisplay()
                 if (remaining <= 0L) {
                     signalTimer()
                     if (timerRepeat) {
                         timerEndAt = System.currentTimeMillis() + timerDuration
                         timerRemaining = timerDuration
-                        countdownText?.text = formatMillis(timerDuration)
+                        refreshTimerDisplay()
                     } else {
                         stopTimerOverlay()
                         maybeStopService()
@@ -290,24 +293,37 @@ class FloatingOverlayService : Service() {
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = roundedBackground(0xee2e2924.toInt(), 14f)
+            background = roundedBackground(0xff25201b.toInt(), 14f)
         }
-        layout.addView(overlayButton("Timer") { startTimerFromPrefs() })
-        layout.addView(overlayButton("Puzzle · Next 5") {
+        fun menuItem(label: String, action: () -> Unit) {
+            val item = overlayButton(label, action)
+            layout.addView(item, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
+            ).apply { bottomMargin = dp(5) })
+        }
+        menuItem("Show / Edit Timer") {
+            if (timerView == null) startTimerFromPrefs()
+            showTimerEditor()
+            removeViewSafely(menuView)
+            menuView = null
+        }
+        menuItem("Puzzle Box") {
             showPuzzleBubble()
             removeViewSafely(menuView)
             menuView = null
-        })
-        layout.addView(overlayButton("Restart") { restartTimer() })
-        layout.addView(overlayButton("Hide") {
+        }
+        menuItem("Restart Timer") { restartTimer() }
+        menuItem("Hide Menu") {
             removeViewSafely(menuView)
             menuView = null
-        })
-        layout.addView(overlayButton("Close bubble") { hideCompanionBubble() })
+        }
+        menuItem("Close Bubble") { hideCompanionBubble() }
 
-        val x = (bubble.x + dp(62)).coerceAtLeast(0)
-        val y = bubble.y.coerceAtLeast(0)
-        val params = overlayParams(dp(150), WindowManager.LayoutParams.WRAP_CONTENT, x, y)
+        val screenW = resources.displayMetrics.widthPixels
+        val screenH = resources.displayMetrics.heightPixels
+        val x = (bubble.x + dp(62)).coerceIn(0, (screenW - dp(202)).coerceAtLeast(0))
+        val y = bubble.y.coerceIn(0, (screenH - dp(290)).coerceAtLeast(0))
+        val params = overlayParams(dp(198), WindowManager.LayoutParams.WRAP_CONTENT, x, y)
         menuView = layout
         windowManager.addView(layout, params)
     }
@@ -448,79 +464,242 @@ class FloatingOverlayService : Service() {
         timerRemaining = timerDuration
         timerEndAt = System.currentTimeMillis() + timerDuration
 
-        if (timerView == null) {
-            createTimerOverlay()
-        } else {
-            countdownText?.text = formatMillis(timerDuration)
-            pauseButton?.text = "Pause"
-        }
+        if (timerView == null) createTimerOverlay()
+        refreshTimerDisplay()
         handler.removeCallbacks(timerTick)
         handler.post(timerTick)
     }
 
+    /** Preserve a non-focusable window: no EditText or keyboard over OSRS. */
     private fun createTimerOverlay() {
-        val pos = FloatingPrefs.timerPosition(this)
+        val screenWidth = resources.displayMetrics.widthPixels
+        val panelWidth = minOf(dp(292), screenWidth - dp(24)).coerceAtLeast(dp(220))
+        val savedPosition = FloatingPrefs.timerPosition(this)
+        val x = savedPosition.first.coerceIn(0, (screenWidth - panelWidth).coerceAtLeast(0))
+        val y = savedPosition.second.coerceIn(0, (resources.displayMetrics.heightPixels - dp(220)).coerceAtLeast(0))
+        val params = overlayParams(panelWidth, WindowManager.LayoutParams.WRAP_CONTENT, x, y)
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            background = roundedBackground(0xee201c18.toInt(), 14f)
+            setPadding(dp(12), dp(10), dp(12), dp(12))
+            // Opaque: text remains readable above RuneScape's moving scenery.
+            background = roundedBackground(0xff211c17.toInt(), 16f)
         }
 
-        val title = TextView(this).apply {
-            text = timerLabel + if (timerRepeat) "  ↻" else ""
-            setTextColor(0xffd7c7a4.toInt())
-            textSize = 11f
-            gravity = Gravity.CENTER
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
+        val title = TextView(this).apply {
+            text = timerLabel.uppercase()
+            setTextColor(AndroidColor.WHITE)
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+        header.addView(title, LinearLayout.LayoutParams(0, dp(38), 1f))
+        val dragHandle = TextView(this).apply {
+            text = "≡  DRAG"
+            setTextColor(0xffffcf72.toInt())
+            textSize = 12f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(dp(8), 0, dp(4), 0)
+            background = roundedBackground(0xff3b3229.toInt(), 8f)
+        }
+        header.addView(dragHandle, LinearLayout.LayoutParams(dp(94), dp(38)))
+        root.addView(header)
+
         val time = TextView(this).apply {
             text = formatMillis(timerDuration)
-            setTextColor(0xffd7a93f.toInt())
-            textSize = 24f
+            setTextColor(0xffffc653.toInt())
+            textSize = 40f
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(4), dp(10), dp(4))
+            includeFontPadding = false
+            setPadding(dp(2), dp(4), dp(2), dp(4))
         }
+        root.addView(time, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(66)
+        ))
         countdownText = time
 
-        val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        val status = TextView(this).apply {
+            setTextColor(0xfff5e7d1.toInt())
+            textSize = 12.5f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(8))
+        }
+        timerStatusText = status
+        root.addView(status)
+
+        fun actionRow(vararg buttons: AndroidButton): LinearLayout {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            buttons.forEach { button ->
+                row.addView(button, LinearLayout.LayoutParams(0, dp(44), 1f).apply {
+                    leftMargin = dp(3)
+                    rightMargin = dp(3)
+                    bottomMargin = dp(6)
+                })
+            }
+            return row
         }
         val pause = overlayButton("Pause") {
             if (timerPaused) resumeTimer() else pauseTimer()
         }
         pauseButton = pause
-        controls.addView(pause)
-        controls.addView(overlayButton("↻") { restartTimer() })
-        controls.addView(overlayButton("Stop") {
-            stopTimerOverlay()
-            maybeStopService()
-        })
+        root.addView(actionRow(pause, overlayButton("Restart") { restartTimer() }))
 
-        root.addView(title)
-        root.addView(time)
-        root.addView(controls)
+        val adjustmentArea = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(4), dp(5), dp(4), dp(5))
+            background = roundedBackground(0xff30271e.toInt(), 11f)
+        }
+        timerEditPanel = adjustmentArea
 
-        val params = overlayParams(dp(205), WindowManager.LayoutParams.WRAP_CONTENT, pos.first, pos.second)
-        timerView = root
-        timerParams = params
-        makeDraggable(time, params, onMoveFinished = {
+        val toggle = overlayButton("Adjust Time ▾") {
+            adjustmentArea.visibility =
+                if (adjustmentArea.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+        root.addView(actionRow(
+            toggle,
+            overlayButton("Stop Timer") {
+                stopTimerOverlay()
+                maybeStopService()
+            }
+        ))
+
+        val help = TextView(this).apply {
+            text = "CHANGE REMAINING TIME"
+            gravity = Gravity.CENTER
+            setTextColor(0xffffcf72.toInt())
+            textSize = 13f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(dp(2), dp(3), dp(2), dp(6))
+        }
+        adjustmentArea.addView(help)
+        adjustmentArea.addView(actionRow(
+            overlayButton("−1 min") { adjustTimerBy(-60_000L) },
+            overlayButton("+1 min") { adjustTimerBy(60_000L) }
+        ))
+        adjustmentArea.addView(actionRow(
+            overlayButton("−10 sec") { adjustTimerBy(-10_000L) },
+            overlayButton("+10 sec") { adjustTimerBy(10_000L) }
+        ))
+
+        val presetCaption = TextView(this).apply {
+            text = "START A NEW COUNTDOWN"
+            gravity = Gravity.CENTER
+            setTextColor(0xffffcf72.toInt())
+            textSize = 12f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(dp(2), dp(3), dp(2), dp(6))
+        }
+        adjustmentArea.addView(presetCaption)
+        adjustmentArea.addView(actionRow(
+            overlayButton("1 min") { setTimerPreset(60L) },
+            overlayButton("5 min") { setTimerPreset(300L) },
+            overlayButton("10 min") { setTimerPreset(600L) },
+            overlayButton("15 min") { setTimerPreset(900L) }
+        ))
+        val repeatButton = overlayButton("Repeat") {
+            timerRepeat = !timerRepeat
+            saveActiveTimerSettings()
+            refreshTimerDisplay()
+        }
+        timerSettingText = TextView(this).apply {
+            gravity = Gravity.CENTER
+            setTextColor(0xfff5e7d1.toInt())
+            textSize = 12f
+            setPadding(dp(2), dp(4), dp(2), dp(5))
+        }
+        adjustmentArea.addView(repeatButton,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)))
+        adjustmentArea.addView(timerSettingText)
+
+        root.addView(adjustmentArea)
+
+        makeDraggable(dragHandle, params, onMoveFinished = {
             FloatingPrefs.saveTimerPosition(this, params.x, params.y)
         }, onTap = {})
-        windowManager.addView(root, params)
+
+        timerView = root
+        timerParams = params
+        try {
+            windowManager.addView(root, params)
+        } catch (_: Exception) {
+            timerView = null
+            timerParams = null
+            countdownText = null
+            pauseButton = null
+            timerStatusText = null
+            timerSettingText = null
+            timerEditPanel = null
+        }
+    }
+
+    private fun showTimerEditor() {
+        timerEditPanel?.visibility = View.VISIBLE
+    }
+
+    private fun refreshTimerDisplay() {
+        countdownText?.text = formatMillis(timerRemaining)
+        pauseButton?.text = if (timerPaused) "Resume" else "Pause"
+        val state = if (timerPaused) "PAUSED" else "RUNNING"
+        timerStatusText?.text = "$state   •   " + if (timerRepeat) "REPEAT ON" else "ONE TIME"
+        timerSettingText?.text =
+            "Repeat: " + if (timerRepeat) "ON — restarts after zero" else "OFF — alerts once"
+    }
+
+    private fun saveActiveTimerSettings() {
+        FloatingPrefs.save(this, timerLabel, timerDuration / 1000L, timerRepeat)
+    }
+
+    /** Nudge time without ever opening a keyboard or changing OSRS input focus. */
+    private fun adjustTimerBy(deltaMillis: Long) {
+        if (timerView == null) return
+        val current = if (timerPaused) timerRemaining
+            else max(0L, timerEndAt - System.currentTimeMillis())
+        val maxDuration = (999L * 60L + 59L) * 1000L
+        val elapsed = (timerDuration - current).coerceAtLeast(0L)
+        val newRemaining = (current + deltaMillis).coerceIn(
+            1_000L, (maxDuration - elapsed).coerceAtLeast(1_000L)
+        )
+        timerDuration = (elapsed + newRemaining).coerceAtMost(maxDuration)
+        timerRemaining = newRemaining
+        if (!timerPaused) timerEndAt = System.currentTimeMillis() + newRemaining
+        saveActiveTimerSettings()
+        refreshTimerDisplay()
+    }
+
+    private fun setTimerPreset(seconds: Long) {
+        timerDuration = seconds * 1000L
+        timerRemaining = timerDuration
+        timerEndAt = System.currentTimeMillis() + timerDuration
+        timerPaused = false
+        saveActiveTimerSettings()
+        refreshTimerDisplay()
     }
 
     private fun pauseTimer() {
         if (timerView == null || timerPaused) return
         timerRemaining = max(0L, timerEndAt - System.currentTimeMillis())
         timerPaused = true
-        pauseButton?.text = "Resume"
+        refreshTimerDisplay()
     }
 
     private fun resumeTimer() {
         if (timerView == null || !timerPaused) return
         timerEndAt = System.currentTimeMillis() + timerRemaining
         timerPaused = false
-        pauseButton?.text = "Pause"
+        refreshTimerDisplay()
     }
 
     private fun restartTimer() {
@@ -531,8 +710,7 @@ class FloatingOverlayService : Service() {
         timerPaused = false
         timerRemaining = timerDuration
         timerEndAt = System.currentTimeMillis() + timerDuration
-        countdownText?.text = formatMillis(timerDuration)
-        pauseButton?.text = "Pause"
+        refreshTimerDisplay()
     }
 
     private fun stopTimerOverlay() {
@@ -542,6 +720,9 @@ class FloatingOverlayService : Service() {
         timerParams = null
         countdownText = null
         pauseButton = null
+        timerStatusText = null
+        timerSettingText = null
+        timerEditPanel = null
         timerPaused = false
     }
 
@@ -567,13 +748,18 @@ class FloatingOverlayService : Service() {
     private fun overlayButton(label: String, click: () -> Unit): AndroidButton {
         return AndroidButton(this).apply {
             text = label
-            textSize = 10f
+            textSize = 13f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(AndroidColor.WHITE)
             isAllCaps = false
+            minWidth = 0
+            minimumWidth = 0
             minHeight = 0
             minimumHeight = 0
-            setPadding(dp(6), dp(3), dp(6), dp(3))
-            background = roundedBackground(0xff4b443c.toInt(), 8f)
+            setPadding(dp(3), dp(3), dp(3), dp(3))
+            maxLines = 1
+            gravity = Gravity.CENTER
+            background = roundedBackground(0xff493b30.toInt(), 9f)
             setOnClickListener { click() }
         }
     }
@@ -721,7 +907,7 @@ fun FloatingToolsScreen(nav: NavHostController) {
                     ) {
                         Text("NON-FOCUSING OVERLAY", color = FloatGold, fontWeight = FontWeight.Bold)
                         Text(
-                            "The companion bubble and floating timer use a non-focusable Android overlay so OSRS stays the foreground app. Only the overlay control you tap consumes that tap.",
+                            "The companion bubble and floating timer use non-focusable Android overlays. Their buttons work without making Companion the foreground app; OSRS keeps input focus.",
                             color = FloatParchment
                         )
                         Text(
@@ -757,6 +943,10 @@ fun FloatingToolsScreen(nav: NavHostController) {
                         verticalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
                         Text("FLOATING TIMER", color = FloatGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Tap Adjust Time on the floating timer to change the remaining minutes/seconds, choose a preset, or turn Repeat on/off without leaving OSRS. Drag by its header to reposition it.",
+                            color = FloatParchment
+                        )
                         OutlinedTextField(
                             value = name,
                             onValueChange = { name = it.take(24) },
