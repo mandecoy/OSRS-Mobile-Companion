@@ -22,8 +22,8 @@ android {
         applicationId = "com.mandecoy.osrscompanion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 22
-        versionName = "0.5.12"
+        versionCode = 23
+        versionName = "0.5.13"
     }
 
     signingConfigs {
