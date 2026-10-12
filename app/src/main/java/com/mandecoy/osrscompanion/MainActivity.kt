@@ -451,6 +451,7 @@ data class FarmPreset(val label: String, val seconds: Long, val icon: String)
 private val FarmPresets = listOf(
     FarmPreset("Herb run", 80 * 60, "🌿"),
     FarmPreset("Birdhouse run", 50 * 60, "🐦"),
+    FarmPreset("Coral", 160 * 60, "🪸"),
     FarmPreset("Allotments", 40 * 60, "🌱"),
     FarmPreset("Hops", 40 * 60, "🌱"),
     FarmPreset("Bushes", 100 * 60, "🌿"),
