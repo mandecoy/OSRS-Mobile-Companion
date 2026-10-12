@@ -446,25 +446,25 @@ private fun QuickMiniCard(
     }
 }
 
-data class FarmPreset(val label: String, val seconds: Long, val icon: String)
+data class FarmPreset(val label: String, val seconds: Long, val iconFile: String)
 
 private val FarmPresets = listOf(
-    FarmPreset("Herb run", 80 * 60, "🌿"),
-    FarmPreset("Birdhouse run", 50 * 60, "🐦"),
-    FarmPreset("Coral", 160 * 60, "🪸"),
-    FarmPreset("Allotments", 40 * 60, "🌱"),
-    FarmPreset("Hops", 40 * 60, "🌱"),
-    FarmPreset("Bushes", 100 * 60, "🌿"),
-    FarmPreset("Oak tree", 200 * 60, "🌳"),
-    FarmPreset("Willow tree", 240 * 60, "🌳"),
-    FarmPreset("Maple tree", 320 * 60, "🌳"),
-    FarmPreset("Yew tree", 400 * 60, "🌳"),
-    FarmPreset("Magic tree", 480 * 60, "🌳"),
-    FarmPreset("Fruit tree", 960 * 60, "🍎"),
-    FarmPreset("Teak tree", 4480 * 60, "🌳"),
-    FarmPreset("Mahogany tree", 5120 * 60, "🌳"),
-    FarmPreset("Cactus", 560 * 60, "🌵"),
-    FarmPreset("Calquat", 1280 * 60, "🌳")
+    FarmPreset("Herb run", 80 * 60, "Ranarr_weed.png"),
+    FarmPreset("Birdhouse run", 50 * 60, "Bird_house.png"),
+    FarmPreset("Coral", 160 * 60, "Elkhorn_coral.png"),
+    FarmPreset("Allotments", 40 * 60, "Watermelon.png"),
+    FarmPreset("Hops", 40 * 60, "Jute_fibre.png"),
+    FarmPreset("Bushes", 100 * 60, "White_berries.png"),
+    FarmPreset("Oak tree", 200 * 60, "Oak_sapling.png"),
+    FarmPreset("Willow tree", 240 * 60, "Willow_sapling.png"),
+    FarmPreset("Maple tree", 320 * 60, "Maple_sapling.png"),
+    FarmPreset("Yew tree", 400 * 60, "Yew_sapling.png"),
+    FarmPreset("Magic tree", 480 * 60, "Magic_sapling.png"),
+    FarmPreset("Fruit tree", 960 * 60, "Pineapple_sapling.png"),
+    FarmPreset("Teak tree", 4480 * 60, "Teak_sapling.png"),
+    FarmPreset("Mahogany tree", 5120 * 60, "Mahogany_sapling.png"),
+    FarmPreset("Cactus", 560 * 60, "Cactus_seed.png"),
+    FarmPreset("Calquat", 1280 * 60, "Calquat_sapling.png")
 )
 
 @Composable
@@ -620,8 +620,14 @@ private fun TimersScreen(nav: NavHostController) {
                         Modifier.fillMaxWidth().padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        WikiIcon(
+                            osrsWikiImage(preset.iconFile),
+                            preset.label,
+                            38.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(preset.icon + " " + preset.label, color = TextLight, fontWeight = FontWeight.Bold)
+                            Text(preset.label, color = TextLight, fontWeight = FontWeight.Bold)
                             Text(formatSeconds(preset.seconds), color = Parchment, fontSize = 12.sp)
                         }
                         Button(
