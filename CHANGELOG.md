@@ -2,6 +2,16 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.9
+
+### Floating timer usability
+- Rebuilt floating timer as an opaque high-contrast panel with a bold 40sp countdown and readable control rows.
+- The timer overlay can adjust remaining time by ±1 minute or ±10 seconds, start a 1/5/10/15-minute preset, and toggle Repeat without opening the main app or keyboard.
+- Kept Pause/Resume, Restart and Stop actions visible in comfortably sized, separate buttons; fixed the narrow/cramped Stop button.
+- Added an explicit drag handle and clamps to keep floating controls inside the phone's usable screen when moved or expanded.
+- Companion bubble now opens the active timer's edit controls instead of unexpectedly restarting it.
+- The overlay remains FLAG_NOT_FOCUSABLE to preserve OSRS foreground focus.
+
 ## 0.5.8
 
 ### Puzzle Box reliability
