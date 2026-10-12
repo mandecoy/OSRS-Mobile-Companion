@@ -315,8 +315,25 @@ class FloatingOverlayService : Service() {
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
             ).apply { bottomMargin = dp(5) })
         }
-        menuItem("Show / Edit Timer") {
+        menuItem(
+            if (timerView == null || timerView?.visibility != View.VISIBLE)
+                "Show Timer" else "Hide Timer"
+        ) {
+            val current = timerView
+            if (current == null) {
+                startTimerFromPrefs()
+            } else {
+                // This only changes visibility. Do not remove the overlay
+                // window or stop timerTick: the original countdown continues.
+                current.visibility =
+                    if (current.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            }
+            removeViewSafely(menuView)
+            menuView = null
+        }
+        menuItem("Edit Timer") {
             if (timerView == null) startTimerFromPrefs()
+            timerView?.visibility = View.VISIBLE
             showTimerEditor()
             removeViewSafely(menuView)
             menuView = null
