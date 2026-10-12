@@ -21,7 +21,10 @@ data class PuzzleAnalysis(
     val moves: List<Int>,
     val matchDifference: Float,
     /** True when recognized tiles have impossible parity and need manual correction. */
-    val inferredParityRepair: Boolean = false
+    val inferredParityRepair: Boolean = false,
+    /** Global 5x5 screenshot alignment adjustment used for tile features. */
+    val matchShiftX: Float = 0f,
+    val matchShiftY: Float = 0f
 )
 
 data class PuzzleMoveHint(
@@ -35,6 +38,7 @@ object PuzzleEngine {
     private const val CELL_COUNT = 25
     private const val GAP = 24
     private const val SAMPLE_SIDE = 7
+    private val ALIGNMENT_SHIFTS = floatArrayOf(-0.06f, 0f, 0.06f)
     private const val SEARCH_LIMIT = 350_000
     private const val LEARNING_PREFS = "puzzle_visual_learning_v1"
     private const val DRAFT_PREFS = "puzzle_recognition_drafts_v1"
@@ -73,7 +77,7 @@ object PuzzleEngine {
         if (!PuzzleTileMapping.isPermutation(solved.board) ||
             !PuzzleTileMapping.isSolvable(solved.board)) return false
         return try {
-            val observed = tileFeatures(solved.preview)
+            val observed = tileFeatures(solved.preview, solved.matchShiftX, solved.matchShiftY)
             val previous = learnedFeatures(context, solved.puzzleName)
             val bytes = ByteArray(24 * FEATURE_COUNT)
             for (position in 0 until CELL_COUNT) {
@@ -171,40 +175,47 @@ object PuzzleEngine {
         val refs = references(context)
         if (refs.isEmpty()) return null
 
-        val observed = tileFeatures(cropped)
+        // Detect the blank using appearance, NOT the artwork's bottom-right
+        // tile, which is not guaranteed to look like the blank in a screenshot.
+        val gap = detectEmptyPosition(cropped)
         var winner: Ref? = null
         var winnerAssignment: IntArray? = null
-        var winnerCosts: Array<DoubleArray>? = null
         var winnerMean = Float.MAX_VALUE
+        var winnerX = 0f
+        var winnerY = 0f
 
-        for (ref in refs) {
-            val learned = learnedFeatures(context, ref.name)
-            val costs = Array(CELL_COUNT) { pos ->
-                DoubleArray(CELL_COUNT) { tile ->
-                    val original = featureDistance(observed[pos], ref.tileFeatures[tile])
-                    if (learned != null && tile != GAP) {
-                        val confirmed = featureDistance(observed[pos], learned[tile])
-                        // Trust a previously verified picture but retain an
-                        // independent official-reference check.
-                        (original * 0.30f + confirmed * 0.70f).toDouble()
-                    } else original.toDouble()
+        // The game's borders are not always cropped on exact 1/5th boundaries.
+        // Try small shifts of the entire photo sample grid, select the best
+        // picture+alignment jointly instead of mislabelling similar dark tiles.
+        for (shiftY in ALIGNMENT_SHIFTS) for (shiftX in ALIGNMENT_SHIFTS) {
+            val observed = tileFeatures(cropped, shiftX, shiftY)
+            for (ref in refs) {
+                val learned = learnedFeatures(context, ref.name)
+                val costs = Array(CELL_COUNT) { pos ->
+                    DoubleArray(CELL_COUNT) { tile ->
+                        val original = featureDistance(observed[pos], ref.tileFeatures[tile])
+                        if (learned != null && tile != GAP) {
+                            val confirmed = featureDistance(observed[pos], learned[tile])
+                            (original * 0.30f + confirmed * 0.70f).toDouble()
+                        } else original.toDouble()
+                    }
                 }
-            }
-            val assignment = minimumAssignmentWithForcedGap(costs, detectEmptyPosition(cropped))
-            var total = 0.0
-            for (pos in 0 until CELL_COUNT) total += costs[pos][assignment[pos]]
-            val mean = (total / CELL_COUNT).toFloat()
-            if (mean < winnerMean) {
-                winner = ref
-                winnerAssignment = assignment
-                winnerCosts = costs
-                winnerMean = mean
+                val assignment = minimumAssignmentWithForcedGap(costs, gap)
+                var total = 0.0
+                for (pos in 0 until CELL_COUNT) total += costs[pos][assignment[pos]]
+                val mean = (total / CELL_COUNT).toFloat()
+                if (mean < winnerMean) {
+                    winner = ref
+                    winnerAssignment = assignment
+                    winnerMean = mean
+                    winnerX = shiftX
+                    winnerY = shiftY
+                }
             }
         }
 
         val ref = winner ?: return null
         val board = winnerAssignment ?: return null
-        val costs = winnerCosts ?: return null
 
         // RuneLite receives exact tile IDs from the game client; this app
         // must infer IDs from an image. Never alter the detected tile labels
@@ -220,7 +231,9 @@ object PuzzleEngine {
             board = board.copyOf(),
             moves = moves,
             matchDifference = winnerMean,
-            inferredParityRepair = recognitionImpossible
+            inferredParityRepair = recognitionImpossible,
+            matchShiftX = winnerX,
+            matchShiftY = winnerY
         )
     }
 
@@ -299,10 +312,10 @@ object PuzzleEngine {
         }
         scores.sortBy { it.second }
         if (scores.size < 2) return null
-        // Avoid guessing when a dark patch in the artwork resembles a blank.
-        return if (scores[0].second < 120.0 && scores[1].second - scores[0].second > 12.0) {
-            scores[0].first
-        } else null
+        // Even an ambiguous DARK square is a better gap hypothesis than
+        // comparing against the completed artwork's bottom-right picture tile.
+        // The review step still requires the user to confirm the actual gap.
+        return scores[0].first
     }
 
     fun moveHints(board: IntArray, moves: List<Int>, start: Int, count: Int = 5): List<PuzzleMoveHint> {
@@ -590,7 +603,7 @@ object PuzzleEngine {
         return (r * 3 + g * 6 + b) / 10
     }
 
-    private fun tileFeatures(image: Bitmap): Array<FloatArray> {
+    private fun tileFeatures(image: Bitmap, shiftX: Float = 0f, shiftY: Float = 0f): Array<FloatArray> {
         val pixels = IntArray(image.width * image.height)
         image.getPixels(pixels, 0, image.width, 0, 0, image.width, image.height)
         val cellW = image.width / SIDE.toFloat()
@@ -600,8 +613,8 @@ object PuzzleEngine {
         return Array(CELL_COUNT) { tile ->
             val col = tile % SIDE
             val row = tile / SIDE
-            val x0 = col * cellW + cellW * (1f - keep) / 2f
-            val y0 = row * cellH + cellH * (1f - keep) / 2f
+            val x0 = col * cellW + cellW * ((1f - keep) / 2f + shiftX)
+            val y0 = row * cellH + cellH * ((1f - keep) / 2f + shiftY)
             val spanX = cellW * keep
             val spanY = cellH * keep
             val out = FloatArray(SAMPLE_SIDE * SAMPLE_SIDE * 3)
@@ -631,9 +644,22 @@ object PuzzleEngine {
     }
 
     private fun featureDistance(a: FloatArray, b: FloatArray): Float {
-        var total = 0f
-        for (i in a.indices) total += abs(a[i] - b[i])
-        return total / a.size
+        // Blend raw colour difference with brightness-offset-corrected
+        // STRUCTURE difference. This retains edges and shapes when the phone's
+        // screenshot/PNG has a slight colour or brightness bias.
+        if (a.size != b.size || a.isEmpty()) return Float.MAX_VALUE
+        var raw = 0f
+        val delta = FloatArray(3)
+        for (i in a.indices) {
+            raw += abs(a[i] - b[i])
+            delta[i % 3] += a[i] - b[i]
+        }
+        for (ch in 0..2) delta[ch] /= (a.size / 3).toFloat()
+        var structure = 0f
+        for (i in a.indices) {
+            structure += abs(a[i] - b[i] - delta[i % 3])
+        }
+        return (raw * 0.65f + structure * 0.35f) / a.size
     }
 
     private fun minimumAssignmentWithForcedGap(cost: Array<DoubleArray>, knownGap: Int? = null): IntArray {
