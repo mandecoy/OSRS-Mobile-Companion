@@ -1598,6 +1598,7 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         "Achievement Diaries", "OSRS Wiki", "DPS Calculator"
     )
     var playerName by remember { mutableStateOf(SavedPlayerName.get(context)) }
+    var fillFeedback by remember { mutableStateOf<String?>(null) }
     var usernameToolbarVisible by remember {
         mutableStateOf(SavedPlayerName.isToolbarVisible(context))
     }
@@ -1669,11 +1670,36 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                             enabled = playerName.isNotBlank()
                         ) { Text("Copy", color = RuneGold) }
                         TextButton(
-                            onClick = { page?.let {
-                                SavedPlayerName.fillRelevantFields(it, it.url, playerName)
-                            } },
+                            onClick = {
+                                val web = page
+                                if (web == null) {
+                                    fillFeedback = "Page not ready. Try again when it finishes loading."
+                                } else {
+                                    SavedPlayerName.fillRelevantFields(
+                                        web, web.url, playerName, manual = true
+                                    ) { status ->
+                                        fillFeedback = when (status) {
+                                            "filled" -> "Username inserted. Continue on the website."
+                                            "already" -> "Username already present in the player field."
+                                            "missing" -> "No clear player field found. Tap the desired text box on the website, then press Fill again. Or use Copy."
+                                            "unsupported" -> "This page cannot be filled automatically. Use Copy and paste the name manually."
+                                            "empty" -> "Enter a saved username first."
+                                            else -> "Site blocked or changed its input fields. Use Copy to paste manually."
+                                        }
+                                    }
+                                }
+                            },
                             enabled = playerName.isNotBlank()
                         ) { Text("Fill", color = RuneGold) }
+                    }
+                    fillFeedback?.let { message ->
+                        Text(
+                            message,
+                            color = Parchment,
+                            fontSize = 11.sp,
+                            modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924))
+                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                        )
                     }
                 }
             } else {
