@@ -2,6 +2,15 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.3
+
+### Changed
+
+- Reorder Widgets now uses long-press drag and drop instead of up/down arrow buttons
+- Quick Widgets can be picked up and dropped into a new slot
+- Main tool tiles can be picked up and dropped into a new order
+- Layout changes still save automatically on the device
+
 ## 0.5.2
 
 ### Fixed
