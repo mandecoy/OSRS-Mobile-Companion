@@ -2,6 +2,27 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.14
+
+### Puzzle correction and recognition
+- Replaced confusing 1–24 recognition guesses with a direct visual mapping editor: choose the cell in the original screenshot, then the corresponding artwork cell in the solved reference.
+- Added accurate image-based 5×5 touch selection, blank-square assignment, and optional row/column fallback selectors.
+- Remember unfinished corrections to the exact screenshot and restore them after app restarts.
+- After confirming a corrected board, remember the verified appearance of each of its 24 tiles per puzzle artwork to help recognize future shuffled puzzles.
+- Added a reset button for accidentally learned artwork. Previous shuffled boards are never reused as new puzzle boards.
+- Compare 9 global sampling alignment offsets and combine tile colour and shape differences; use the blank image's appearance rather than matching arbitrary artwork in the solved picture.
+- Screenshot parsing still requires visual confirmation and has not been proven correct on every in-game screenshot.
+
+### Companion bubble and timers
+- Companion bubble menu adds separate Show Timer / Hide Timer and Edit Timer controls.
+- Hiding the timer overlay leaves the countdown running unchanged.
+- Tears of Guthix and Manage Miscellania show how much time elapsed since their actual Done button was pressed, updating while the screen is open.
+- Turning on Miscellania reminders no longer records a false Done button press.
+
+### Web tool username
+- Fix Fill in embedded browsers by targeting visible, focused, and labeled text fields, supporting controlled inputs and responding to dynamic site layouts.
+- Show a clear status when a page has no recognizable player field, rather than failing silently. Copy remains available as a fallback.
+
 ## 0.5.13
 
 ### Compact floating timer
