@@ -12,8 +12,8 @@ android {
         applicationId = "com.mandecoy.osrscompanion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.2.3"
+        versionCode = 8
+        versionName = "0.3.1"
     }
 
     compileOptions {
