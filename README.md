@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.9**  
+**Current stable version: 0.5.10**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -23,7 +23,8 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
 - Required screenshot-versus-recognized-board review before any solution is shown
-- Correct any incorrectly recognized picture tile by selecting its solved position, then recalculate
+- Correct ANY recognized tile by tapping two squares in the actual screenshot to swap labels, or selecting a solved target 1–24 / EMPTY; undo, reset, and recalculate
+- Impossible image recognitions are blocked rather than silently modified to fit the solver
 - Flag speculative parity corrections so the user knows recognition might be wrong
 - Numbered move overlays directly on the Puzzle Box tiles
 - All five Puzzle Box taps numbered on the board at once, with Previous 5 / Next 5 navigation
