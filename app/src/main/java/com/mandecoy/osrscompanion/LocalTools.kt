@@ -186,8 +186,6 @@ fun LayoutEditorScreen(nav: NavHostController) {
                             DraggableOrderCard(
                                 title = item.action.label,
                                 subtitle = "Slot " + (index + 1),
-                                canMoveUp = index > 0,
-                                canMoveDown = index < quickItems.lastIndex,
                                 onMove = { delta -> moveQuick(item.token, delta) }
                             )
                         }
@@ -207,8 +205,6 @@ fun LayoutEditorScreen(nav: NavHostController) {
                             DraggableOrderCard(
                                 title = ToolOrderStore.title(route),
                                 subtitle = null,
-                                canMoveUp = index > 0,
-                                canMoveDown = index < order.lastIndex,
                                 onMove = { delta -> moveTool(route, delta) }
                             )
                         }
@@ -245,8 +241,6 @@ private data class QuickDragItem(
 private fun DraggableOrderCard(
     title: String,
     subtitle: String?,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
     onMove: (Int) -> Boolean
 ) {
     val density = LocalDensity.current
@@ -283,7 +277,7 @@ private fun DraggableOrderCard(
                         dragOffset += dragAmount.y
 
                         while (dragOffset > rowStepPx / 2f) {
-                            if (!canMoveDown || !onMove(1)) {
+                            if (!onMove(1)) {
                                 dragOffset = 0f
                                 break
                             }
@@ -291,7 +285,7 @@ private fun DraggableOrderCard(
                         }
 
                         while (dragOffset < -rowStepPx / 2f) {
-                            if (!canMoveUp || !onMove(-1)) {
+                            if (!onMove(-1)) {
                                 dragOffset = 0f
                                 break
                             }
