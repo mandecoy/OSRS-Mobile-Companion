@@ -45,6 +45,7 @@ object PuzzleBubbleStore {
                 .putString("board", analysis.board.joinToString(","))
                 .putString("moves", analysis.moves.joinToString(","))
                 .putFloat("difference", analysis.matchDifference)
+                .putBoolean("recognition_impossible", analysis.inferredParityRepair)
                 .putInt("start", start.coerceIn(0, analysis.moves.size))
                 .apply()
         } catch (_: Exception) {
@@ -52,9 +53,13 @@ object PuzzleBubbleStore {
         }
     }
 
+    // The editing screen may restore an unverified puzzle and its drafts;
+    // only the floating overlay is allowed to call the verified load().
+    fun load(context: Context): PuzzleAnalysis? =
+        if (isVerified(context)) loadForEditing(context) else null
+
     @Synchronized
-    fun load(context: Context): PuzzleAnalysis? {
-        if (!isVerified(context)) return null
+    fun loadForEditing(context: Context): PuzzleAnalysis? {
         cached?.let { return it }
         return try {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -71,7 +76,8 @@ object PuzzleBubbleStore {
             PuzzleAnalysis(
                 prefs.getString("name", "Puzzle") ?: "Puzzle",
                 original, ref, board, moves,
-                prefs.getFloat("difference", 0f)
+                prefs.getFloat("difference", 0f),
+                prefs.getBoolean("recognition_impossible", false)
             ).also { cached = it }
         } catch (_: Exception) {
             null
