@@ -2,6 +2,16 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.13
+
+### Compact floating timer
+- Shrunk the editable timer from 292dp wide to a 192dp medium panel with compact buttons.
+- Added an eye icon on both timer views to toggle a 142dp compact popout showing only the running countdown and the eye.
+- The compact clock itself acts as a draggable handle.
+- Kept Pause/Resume, Restart, Stop, time adjustments and preset buttons inside the medium timer; Edit controls remain collapsed until needed.
+- Size selection is remembered across timer restarts, and opening the timer from the Companion bubble expands its editor.
+- Mode switching does not reset the remaining time, trigger a new timer, open an Activity, or take input focus from OSRS.
+
 ## 0.5.12
 
 ### Visibility and home-screen customization
