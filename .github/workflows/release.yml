@@ -55,13 +55,13 @@ jobs:
           VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Build signed release APK
+      - name: Test puzzle solver and build signed release APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/osrs-companion-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle :app:assembleRelease --stacktrace
+        run: gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
 
       - name: Prepare release filename
         run: |
