@@ -862,6 +862,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     var selectedTilePosition by remember { mutableIntStateOf(-1) }
     var correctedBoard by remember { mutableStateOf(IntArray(25) { it }) }
     var previousCorrection by remember { mutableStateOf<IntArray?>(null) }
+    var correctionMade by remember { mutableStateOf(false) }
+    var recognitionNote by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -874,6 +876,9 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         PuzzleBubbleStore.setVerified(context, false)
         editingTiles = false
         selectedTilePosition = -1
+        previousCorrection = null
+        correctionMade = false
+        recognitionNote = null
 
         Thread {
             val bitmap = try {
@@ -883,18 +888,32 @@ private fun NativePuzzleScreen(nav: NavHostController) {
             }
 
             val result = if (bitmap != null) {
-                try { PuzzleEngine.analyse(context.applicationContext, bitmap)?.also {
-                    PuzzleBubbleStore.save(context.applicationContext, it)
-                } } catch (_: Exception) { null }
+                try { PuzzleEngine.analyse(context.applicationContext, bitmap) }
+                catch (_: Exception) { null }
             } else null
-
+            val recovered = result?.let {
+                try { PuzzleEngine.savedBoardForScreenshot(context.applicationContext, it) }
+                catch (_: Exception) { null }
+            }
+            val display = result?.let {
+                try { PuzzleEngine.restoreBoardForScreenshot(context.applicationContext, it) }
+                catch (_: Exception) { it }
+            }
             handler.post {
                 loading = false
-                if (result == null) {
+                if (display == null) {
                     error = "I couldn't reliably read that puzzle. Make sure the whole open 5×5 puzzle box is visible in the screenshot and try again."
                 } else {
-                    analysis = result
-                    correctedBoard = result.board.copyOf()
+                    analysis = display
+                    correctedBoard = recovered?.copyOf() ?: display.board.copyOf()
+                    correctionMade = recovered != null && result != null &&
+                        !recovered.contentEquals(result.board)
+                    recognitionNote = if (recovered != null && correctionMade)
+                        "Your saved tile corrections for this exact screenshot were restored. Review them before solving."
+                    else if (PuzzleEngine.hasLearnedArtwork(context, display.puzzleName))
+                        "Previously confirmed picture tiles are helping identify this artwork. Please still verify the board."
+                    else null
+                    PuzzleBubbleStore.save(context.applicationContext, display)
                 }
             }
         }.start()
@@ -924,6 +943,11 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                 }
             }
 
+            recognitionNote?.let { info ->
+                item {
+                    Text(info, color = RuneGold, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
             error?.let { message ->
                 item {
                     Card(
@@ -971,6 +995,17 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 fixingGap = false
                                 error = null
                                 PuzzleBubbleStore.save(context.applicationContext, solved, 0)
+                                if (correctionMade) {
+                                    // Never teach the matcher before human confirmation.
+                                    Thread {
+                                        PuzzleEngine.saveWorkingBoard(
+                                            context.applicationContext, solved, solved.board
+                                        )
+                                        PuzzleEngine.rememberVerifiedTiles(
+                                            context.applicationContext, solved
+                                        )
+                                    }.start()
+                                }
                             },
                             enabled = !loading && recognizedSolvable,
                             modifier = Modifier.fillMaxWidth(),
@@ -1013,6 +1048,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                         correctedBoard = PuzzleTileMapping.swapPositions(
                                             correctedBoard, selectedTilePosition, other
                                         )
+                                        correctionMade = true
+                                        PuzzleEngine.saveWorkingBoard(context, solved, correctedBoard)
                                         selectedTilePosition = -1
                                     }
                                 },
@@ -1023,6 +1060,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             correctedBoard = PuzzleTileMapping.assignTile(
                                                 correctedBoard, selectedTilePosition, targetPosition
                                             )
+                                            correctionMade = true
+                                            PuzzleEngine.saveWorkingBoard(context, solved, correctedBoard)
                                         }
                                         selectedTilePosition = -1
                                     }
@@ -1038,6 +1077,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                     onClick = {
                                         previousCorrection?.let {
                                             correctedBoard = it.copyOf()
+                                            PuzzleEngine.saveWorkingBoard(context, solved, correctedBoard)
                                             previousCorrection = null
                                             selectedTilePosition = -1
                                         }
@@ -1048,6 +1088,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 OutlinedButton(
                                     onClick = {
                                         correctedBoard = solved.board.copyOf()
+                                        PuzzleEngine.saveWorkingBoard(context, solved, correctedBoard)
                                         previousCorrection = null
                                         selectedTilePosition = -1
                                     },
@@ -1070,6 +1111,10 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                                 error = "The corrected 5×5 board is not a valid sliding-puzzle state yet. Check that you selected the real EMPTY square and corrected every mismatched tile. Your changes are still here; undo or keep editing."
                                             } else {
                                                 analysis = corrected
+                                                correctedBoard = corrected.board.copyOf()
+                                                correctionMade = true
+                                                PuzzleEngine.saveWorkingBoard(context, corrected, corrected.board)
+                                                recognitionNote = "Corrected board recalculated. Confirm the visual match before saving the learned artwork."
                                                 boardVerified = false
                                                 PuzzleBubbleStore.setVerified(context, false)
                                                 editingTiles = false
@@ -1123,6 +1168,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             } else {
                                                 analysis = corrected
                                                 correctedBoard = corrected.board.copyOf()
+                                                correctionMade = true
+                                                PuzzleEngine.saveWorkingBoard(context, corrected, corrected.board)
                                                 boardVerified = false
                                                 PuzzleBubbleStore.setVerified(context, false)
                                                 moveIndex = 0
