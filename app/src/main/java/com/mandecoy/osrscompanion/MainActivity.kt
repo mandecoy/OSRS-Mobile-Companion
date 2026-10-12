@@ -1082,7 +1082,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             (absoluteMove + 1).toString(),
                                             color = RuneGold,
                                             fontSize = 11.sp,
-                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+                                            fontWeight = FontWeight.Bold
                                         )
                                         Text(
                                             hint.arrow,
