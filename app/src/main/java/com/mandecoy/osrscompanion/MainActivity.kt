@@ -919,7 +919,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
                     item {
                         Text(
-                            "The numbered gold labels are placed directly on the tiles to tap. Follow 1–5 in order; the arrow matches the move card below.",
+                            "The preview now shows the board as it should look at the start of this batch. Follow the numbered gold labels in order; the arrow matches the move card below.",
                             color = Parchment,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
@@ -1104,7 +1104,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.5.1", color = Parchment)
+            Text("Version 0.5.2", color = Parchment)
             Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
