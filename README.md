@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.6**  
+**Current stable version: 0.5.7**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -11,15 +11,18 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Non-focus floating companion overlay that stays above OSRS
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
 - Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
+- Manage Miscellania reminder with customizable 1-7-day interval and Done now reset
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
+- Farming timer icons show grown trees rather than saplings
 - Farming/run timer presets
-- Four independent Quick Widget slots
+- Four independent Quick Widget slots, with Timers → AFK / Farming / Dailies & Weeklies categories
 - Categorized, scrollable Quick Widget menus for Timers, Farm Runs, and Tools
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
 - Numbered move overlays directly on the Puzzle Box tiles
-- Five-move Puzzle Box batches with Previous 5 / Next 5 navigation and tap-to-preview
+- All five Puzzle Box taps numbered on the board at once, with Previous 5 / Next 5 navigation
+- Non-focusable floating Puzzle Box over OSRS with its own group navigation
 - Manual EMPTY-square correction when screenshot matching picks the wrong blank
 - Native Light Box solver with highlighted A-H switch guidance
 - Native GE Tools with flip finder, most-traded items, gainers/losers, Death's Coffer estimates, and item price charts
@@ -34,6 +37,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Shooting Stars tracker
 - Skill calculators
 - RuneScape Wiki DPS calculator
+- One saved OSRS username shared across Wise Old Man, Skill Calculators, Quest/Diary reference pages, Wiki and DPS Calculator; profile fields autofill on supported services
 - Separate Quests and Achievement Diaries tools
 - Clue Helper
 - Official Old School News archive
@@ -78,7 +82,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 OSRS Companion Tool has no account system and no analytics.
 
-Timer, reminder, Quick Widget, portfolio, watchlist, price-alert, notepad, and layout settings are stored locally on the device. Live GE tools fetch public price data from the RuneScape Wiki price API. Some tools display or link to third-party services, including the OSRS Wiki, Wise Old Man, OSRS Portal, OldSchool.tools, and Jagex websites. Those services have their own privacy policies and terms.
+Timer, reminder, Quick Widget, portfolio, watchlist, price-alert, notepad, saved player name, and layout settings are stored locally on the device. Live GE tools fetch public price data from the RuneScape Wiki price API. Some tools display or link to third-party services, including the OSRS Wiki, Wise Old Man, OSRS Portal, OldSchool.tools, and Jagex websites. Those services have their own privacy policies and terms.
 
 ## Open source
 
