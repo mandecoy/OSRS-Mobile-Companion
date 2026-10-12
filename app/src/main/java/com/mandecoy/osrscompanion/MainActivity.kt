@@ -117,7 +117,7 @@ private val WebTools = mapOf(
     "dps" to WebTool("DPS Calculator", "https://tools.runescape.wiki/osrs-dps/", "Compare gear, weapons, attack styles, and damage output."),
     "puzzle" to WebTool("Puzzle Box Solver", "https://osrs-puzzle-box-solver.vercel.app/", "Upload your puzzle-box screenshot and follow the moves in groups of five."),
     "light" to WebTool("Light Box Solver", "https://osrs-lightbox-solver.fletom.com/", "Solve master-clue light boxes."),
-    "quests" to WebTool("Quests & Diaries", "https://oldschool.runescape.wiki/w/Quest_List", "Quest and achievement-diary references."),
+    "quests" to WebTool("Quests", "https://oldschool.runescape.wiki/w/Quests", "Quest list, requirements, and guides."),\n    "diaries" to WebTool("Achievement Diaries", "https://oldschool.runescape.wiki/w/Achievement_Diary", "Achievement Diary requirements and rewards."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
@@ -133,7 +133,7 @@ private val Tools = listOf(
     Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", "🌠"),
     Tool("Skill Calculators", "All skills", "web/skills", "📊"),
     Tool("DPS Calculator", "Combat damage calculator", "web/dps", "⚔️"),
-    Tool("Quests & Diaries", "Guides + requirements", "web/quests", "📜"),
+    Tool("Quests", "Quest list + requirements", "web/quests", "📜"),\n    Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", "🏆"),
     Tool("Clue Helper", "Treasure trail references", "web/clues", "🗺️"),
     Tool("Quick Widgets", "Customize four shortcuts", "quick", "⚙️"),
     Tool("About", "Source + privacy", "about", "ℹ️")
@@ -601,6 +601,22 @@ private fun ExactAlarmCard(context: Context) {
 private fun QuickActionsScreen(nav: NavHostController) {
     val context = LocalContext.current
     var current by remember { mutableStateOf(QuickActionStore.load(context)) }
+    var customLabel by remember { mutableStateOf("Custom timer") }
+    var customMinutes by remember { mutableStateOf("5") }
+    var customSeconds by remember { mutableStateOf("0") }
+
+    fun customTimerAction(): QuickAction {
+        val minutes = (customMinutes.toLongOrNull() ?: 0L).coerceIn(0L, 30L)
+        val seconds = (customSeconds.toLongOrNull() ?: 0L).coerceIn(0L, 59L)
+        val total = (minutes * 60L + seconds).coerceIn(1L, 1800L)
+        val name = customLabel.trim().ifBlank { "Timer " + formatSeconds(total) }
+        return QuickAction(
+            id = "quick_custom_" + total + "_" + name,
+            label = name,
+            icon = "💤",
+            seconds = total
+        )
+    }
 
     Screen(nav, "Edit Quick Widgets") { padding ->
         LazyColumn(
@@ -610,9 +626,71 @@ private fun QuickActionsScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Choose four tools or preset timers for the top row. Custom timer values can be pinned directly from the Timers screen.",
+                    "Choose four tools or timers for the top row.",
                     color = Parchment
                 )
+            }
+
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("💤 CUSTOM TIMER WIDGET", color = RuneGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Set the exact timer you want, then pin it to one of the four quick-widget slots.",
+                            color = Parchment,
+                            fontSize = 12.sp
+                        )
+                        OutlinedTextField(
+                            value = customLabel,
+                            onValueChange = { customLabel = it.take(20) },
+                            label = { Text("Widget name") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = customMinutes,
+                                onValueChange = { customMinutes = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Minutes") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = customSeconds,
+                                onValueChange = { customSeconds = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Seconds") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            (1..4).forEach { slot ->
+                                Button(
+                                    onClick = {
+                                        QuickActionStore.save(context, slot, customTimerAction())
+                                        current = QuickActionStore.load(context)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = RuneGold,
+                                        contentColor = Color.Black
+                                    )
+                                ) {
+                                    Text("Slot " + slot, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             items(4) { index ->
@@ -759,7 +837,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.2.0", color = Parchment)
+            Text("Version 0.2.2", color = Parchment)
             Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
