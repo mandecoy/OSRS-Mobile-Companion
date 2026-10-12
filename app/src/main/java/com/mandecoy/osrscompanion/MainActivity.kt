@@ -17,6 +17,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -113,7 +114,7 @@ private val WebTools = mapOf(
     "wise" to WebTool("Wise Old Man", "https://wiseoldman.net/", "Player lookup, XP and account tracking."),
     "stars" to WebTool("Shooting Stars", "https://osrsportal.com/shooting-stars-tracker", "OSRS Portal shooting-star tracker."),
     "skills" to WebTool("Skill Calculators", "https://oldschool.tools/calculators/skill", "Pick a skill, look up a player, and plan XP."),
-    "puzzle" to WebTool("Puzzle Box Solver", "https://osrs-puzzle-box-solver.vercel.app/", "Choose a screenshot from your phone and follow the solution."),
+    "puzzle" to WebTool("Puzzle Box Solver", "https://osrs-puzzle-box-solver.vercel.app/", "Upload your puzzle-box screenshot and follow the moves in groups of five."),
     "light" to WebTool("Light Box Solver", "https://osrs-lightbox-solver.fletom.com/", "Solve master-clue light boxes."),
     "quests" to WebTool("Quests & Diaries", "https://oldschool.runescape.wiki/w/Quest_List", "Quest and achievement-diary references."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
@@ -194,7 +195,8 @@ private fun CompanionApp() {
             composable("about") { AboutScreen(nav) }
             composable("web/{key}") { entry ->
                 val key = entry.arguments?.getString("key") ?: "wiki"
-                WebToolScreen(nav, WebTools[key] ?: WebTools.getValue("wiki"))
+                val tool = WebTools[key] ?: WebTools.getValue("wiki")
+                if (key == "puzzle") PuzzleBrowserScreen(nav, tool) else WebToolScreen(nav, tool)
             }
         }
     }
@@ -219,7 +221,7 @@ private fun HomeScreen(nav: NavHostController) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "OSRS Mobile Companion",
+                    "OSRS Companion Tool",
                     color = RuneGold,
                     fontSize = 27.sp,
                     fontWeight = FontWeight.Bold,
@@ -484,6 +486,55 @@ private fun QuickActionsScreen(nav: NavHostController) {
 }
 
 @Composable
+private fun PuzzleBrowserScreen(nav: NavHostController, tool: WebTool) {
+    val context = LocalContext.current
+    var launched by remember { mutableStateOf(false) }
+
+    fun openSolver() {
+        val uri = Uri.parse(tool.url)
+        try {
+            CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .build()
+                .launchUrl(context, uri)
+        } catch (_: Exception) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!launched) {
+            launched = true
+            openSolver()
+        }
+    }
+
+    Screen(nav, "Puzzle Box Solver") { padding ->
+        Column(
+            Modifier.fillMaxSize().padding(padding).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "The puzzle preview did not render reliably inside Android WebView. This opens the solver in a browser tab so the puzzle image, arrows, and 5-step mode can render correctly.",
+                color = Parchment
+            )
+            Button(
+                onClick = { openSolver() },
+                colors = ButtonDefaults.buttonColors(containerColor = RuneGold, contentColor = Color.Black)
+            ) {
+                Text("Open Puzzle Box Solver")
+            }
+            Text(
+                "Upload the screenshot, select 5 steps, make those five moves in OSRS, then return for the next five.",
+                color = TextLight,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
 private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -535,8 +586,8 @@ private fun AboutScreen(nav: NavHostController) {
             Modifier.fillMaxSize().padding(padding).padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("OSRS Mobile Companion", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.1.0", color = Parchment)
+            Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("Version 0.1.1", color = Parchment)
             Text("Free and open source. Timer and quick-action data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
