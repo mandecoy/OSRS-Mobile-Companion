@@ -133,12 +133,12 @@ data class Tool(val title: String, val subtitle: String, val route: String, val 
 
 private val Tools = listOf(
     Tool("Timers", "AFK + farming runs", "timers", osrsWikiImage("Sleeping_cap.png")),
-    Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box.png")),
-    Tool("Light Box", "Master clue solver", "web/light", osrsWikiImage("Light_box.png")),
+    Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box_zulrah.png")),
+    Tool("Light Box", "Master clue solver", "lightbox", osrsWikiImage("Light_box.png")),
     Tool("GE Prices", "Live market prices", "web/prices", osrsWikiImage("Coins_10000.png")),
-    Tool("OSRS Wiki", "Search anything", "web/wiki", osrsWikiImage("Book.png")),
+    Tool("OSRS Wiki", "Search anything", "web/wiki", osrsWikiImage("Old School RuneScape Wiki logo (alternate).png")),
     Tool("Wise Old Man", "Player lookup", "web/wise", osrsWikiImage("Wise_Old_Man.png")),
-    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", osrsWikiImage("Shooting_Star.png")),
+    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", osrsWikiImage("Shooting_Star_Display.png")),
     Tool("Skill Calculators", "All skills", "web/skills", osrsWikiImage("Max_cape.png")),
     Tool("DPS Calculator", "Combat damage calculator", "web/dps", osrsWikiImage("Dragon_scimitar.png")),
     Tool("Quests", "Quest list + requirements", "web/quests", osrsWikiImage("Quest_point_cape.png")),
@@ -157,29 +157,27 @@ data class QuickAction(
 )
 
 private val QuickChoices = listOf(
-    QuickAction("afk5", "AFK 5m", osrsWikiImage("Sleeping_cap.png"), seconds = 300),
-    QuickAction("afk10", "AFK 10m", osrsWikiImage("Sleeping_cap.png"), seconds = 600),
+    QuickAction("timers", "Timers", osrsWikiImage("Sleeping_cap.png"), route = "timers"),
     QuickAction("herb", "Herb Run", osrsWikiImage("Ranarr_weed.png"), seconds = 80 * 60),
     QuickAction("bird", "Birdhouse", osrsWikiImage("Bird_house.png"), seconds = 50 * 60),
-    QuickAction("puzzle", "Puzzle Box", osrsWikiImage("Puzzle_box.png"), route = "puzzle"),
-    QuickAction("light", "Light Box", osrsWikiImage("Light_box.png"), route = "web/light"),
+    QuickAction("puzzle", "Puzzle Box", osrsWikiImage("Puzzle_box_zulrah.png"), route = "puzzle"),
+    QuickAction("light", "Light Box", osrsWikiImage("Light_box.png"), route = "lightbox"),
     QuickAction("prices", "GE Prices", osrsWikiImage("Coins_10000.png"), route = "web/prices"),
-    QuickAction("wiki", "OSRS Wiki", osrsWikiImage("Book.png"), route = "web/wiki"),
+    QuickAction("wiki", "OSRS Wiki", osrsWikiImage("Old School RuneScape Wiki logo (alternate).png"), route = "web/wiki"),
     QuickAction("wise", "Wise Old Man", osrsWikiImage("Wise_Old_Man.png"), route = "web/wise"),
-    QuickAction("stars", "Shooting Stars", osrsWikiImage("Shooting_Star.png"), route = "web/stars"),
+    QuickAction("stars", "Shooting Stars", osrsWikiImage("Shooting_Star_Display.png"), route = "web/stars"),
     QuickAction("skills", "Skill Calculators", osrsWikiImage("Max_cape.png"), route = "web/skills"),
     QuickAction("dps", "DPS Calculator", osrsWikiImage("Dragon_scimitar.png"), route = "web/dps"),
     QuickAction("quests", "Quests", osrsWikiImage("Quest_point_cape.png"), route = "web/quests"),
     QuickAction("diaries", "Achievement Diaries", osrsWikiImage("Achievement_diary_cape.png"), route = "web/diaries"),
     QuickAction("clues", "Clue Helper", osrsWikiImage("Clue_scroll_(hard).png"), route = "web/clues"),
-    QuickAction("news", "Old School News", osrsWikiImage("Newspaper.png"), route = "web/news"),
-    QuickAction("timers", "Timers", osrsWikiImage("Sleeping_cap.png"), route = "timers")
+    QuickAction("news", "Old School News", osrsWikiImage("Newspaper.png"), route = "web/news")
 )
 object QuickActionStore {
     private const val PREFS = "quick_actions_v2"
 
     private val defaults = listOf(
-        QuickChoices.first { it.id == "afk5" },
+        QuickChoices.first { it.id == "timers" },
         QuickChoices.first { it.id == "herb" },
         QuickChoices.first { it.id == "puzzle" },
         QuickChoices.first { it.id == "stars" }
@@ -188,7 +186,12 @@ object QuickActionStore {
     fun load(context: Context): List<QuickAction> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return (1..4).map { slot ->
-            decode(prefs.getString("slot" + slot, null)) ?: defaults[slot - 1]
+            val decoded = decode(prefs.getString("slot" + slot, null))
+            when (decoded?.label) {
+                "AFK 5m", "AFK 5 Minutes", "AFK 10m", "AFK 10 Minutes" ->
+                    QuickChoices.first { it.id == "timers" }
+                else -> decoded ?: defaults[slot - 1]
+            }
         }
     }
 
@@ -253,14 +256,15 @@ private fun CompanionApp() {
             composable("timers") { TimersScreen(nav) }
             composable("quick") { QuickWidgetMenuScreen(nav) }
             composable("puzzle") { NativePuzzleScreen(nav) }
+            composable("lightbox") { NativeLightBoxScreen(nav) }
             composable("about") { AboutScreen(nav) }
             composable("web/{key}") { entry ->
                 val key = entry.arguments?.getString("key") ?: "wiki"
                 val tool = WebTools[key] ?: WebTools.getValue("wiki")
-                if (key == "puzzle") {
-                    NativePuzzleScreen(nav)
-                } else {
-                    WebToolScreen(nav, tool)
+                when (key) {
+                    "puzzle" -> NativePuzzleScreen(nav)
+                    "light" -> NativeLightBoxScreen(nav)
+                    else -> WebToolScreen(nav, tool)
                 }
             }
         }
@@ -827,17 +831,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
             analysis?.let { solved ->
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xff171411)),
-                        border = BorderStroke(2.dp, RuneGoldDark)
-                    ) {
-                        Image(
-                            bitmap = solved.preview.asImageBitmap(),
-                            contentDescription = "Uploaded Puzzle Box",
-                            modifier = Modifier.fillMaxWidth().height(300.dp).padding(8.dp),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
+                    val overlayStart = page * 5
+                    AnnotatedPuzzlePreview(solved = solved, start = overlayStart)
                 }
 
                 item {
@@ -878,7 +873,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
                     item {
                         Text(
-                            "Each arrow means: tap the tile in that direction from the empty square.",
+                            "The numbered gold labels are placed directly on the tiles to tap. Follow 1–5 in order; the arrow matches the move card below.",
                             color = Parchment,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
@@ -1063,7 +1058,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.3.1", color = Parchment)
+            Text("Version 0.4.0", color = Parchment)
             Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
