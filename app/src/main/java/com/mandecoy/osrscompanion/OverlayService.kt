@@ -467,10 +467,10 @@ class FloatingOverlayService : Service() {
                     params.x = max(0, startX + dx)
                     params.y = max(0, startY + dy)
                     try {
-                        windowManager.updateViewLayout(
-                            if (view === bubbleView) bubbleView else timerView,
-                            params
-                        )
+                        val target: View? = if (view === bubbleView) bubbleView else timerView
+                        if (target != null) {
+                            windowManager.updateViewLayout(target, params)
+                        }
                     } catch (_: Exception) {
                     }
                     true
