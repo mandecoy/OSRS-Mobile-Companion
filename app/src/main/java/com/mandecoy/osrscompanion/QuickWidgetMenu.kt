@@ -94,6 +94,7 @@ private val ToolWidgetOptions = listOf(
     WidgetOption("fairy_rings", "Fairy Rings", "Fairy_ring.png", route = "fairy_rings"),
     WidgetOption("notepad", "Notepad", "Spell_scroll.png", route = "notepad"),
     WidgetOption("puzzle", "Puzzle Box", "Puzzle_box_zulrah.png", route = "puzzle"),
+    WidgetOption("guides", "Guides", "Book_of_knowledge.png", route = "guides"),
     WidgetOption("light", "Light Box", "Light_box.png", route = "lightbox"),
     WidgetOption("prices", "Grand Exchange Prices", "Coins_10000.png", route = "web/prices"),
     WidgetOption("wiki", "OSRS Wiki", "Old School RuneScape Wiki logo (alternate).png", route = "web/wiki"),
