@@ -14,6 +14,7 @@ import kotlin.math.min
 data class PuzzleAnalysis(
     val puzzleName: String,
     val preview: Bitmap,
+    val reference: Bitmap,
     val board: IntArray,
     val moves: List<Int>,
     val matchDifference: Float
@@ -42,7 +43,11 @@ object PuzzleEngine {
         "Theatre of Blood" to "Theatre_of_Blood_puzzle_solved.png"
     )
 
-    private data class Ref(val name: String, val tileFeatures: Array<FloatArray>)
+    private data class Ref(
+        val name: String,
+        val grid: Bitmap,
+        val tileFeatures: Array<FloatArray>
+    )
     private var cachedReferences: List<Ref>? = null
 
     fun analyse(context: Context, screenshot: Bitmap): PuzzleAnalysis? {
@@ -69,7 +74,7 @@ object PuzzleEngine {
                     featureDistance(observed[pos], ref.tileFeatures[tile]).toDouble()
                 }
             }
-            val assignment = minimumAssignment(costs)
+            val assignment = minimumAssignmentWithForcedGap(costs)
             var total = 0.0
             for (pos in 0 until CELL_COUNT) total += costs[pos][assignment[pos]]
             val mean = (total / CELL_COUNT).toFloat()
@@ -94,7 +99,14 @@ object PuzzleEngine {
         if (!solvable(board)) return null
 
         val moves = findSolution(board) ?: return null
-        return PuzzleAnalysis(ref.name, cropped, board.copyOf(), moves, winnerMean)
+        return PuzzleAnalysis(
+            puzzleName = ref.name,
+            preview = cropped,
+            reference = ref.grid,
+            board = board.copyOf(),
+            moves = moves,
+            matchDifference = winnerMean
+        )
     }
 
     fun moveHints(board: IntArray, moves: List<Int>, start: Int, count: Int = 5): List<PuzzleMoveHint> {
@@ -183,7 +195,7 @@ object PuzzleEngine {
                         instanceFollowRedirects = true
                         connectTimeout = 10_000
                         readTimeout = 15_000
-                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.2.3")
+                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.5.5")
                     }
                     connection.inputStream.use { BitmapFactory.decodeStream(it) }
                 } catch (_: Exception) {
@@ -193,7 +205,7 @@ object PuzzleEngine {
             val area = refineGrid(bitmap, Rect(0, 0, bitmap.width, bitmap.height))
                 ?: Rect(0, 0, bitmap.width, bitmap.height)
             val grid = Bitmap.createBitmap(bitmap, area.left, area.top, area.width(), area.height())
-            loaded.add(Ref(name, tileFeatures(grid)))
+            loaded.add(Ref(name, grid, tileFeatures(grid)))
         }
         cachedReferences = loaded
         return loaded
@@ -428,6 +440,35 @@ object PuzzleEngine {
         return total / a.size
     }
 
+    private fun minimumAssignmentWithForcedGap(cost: Array<DoubleArray>): IntArray {
+        // The solved reference always has the empty slot at tile 24. Matching the
+        // gap separately prevents a dark artwork tile from stealing the GAP label.
+        var gapPosition = 0
+        var gapCost = Double.POSITIVE_INFINITY
+        for (position in 0 until CELL_COUNT) {
+            if (cost[position][GAP] < gapCost) {
+                gapCost = cost[position][GAP]
+                gapPosition = position
+            }
+        }
+
+        val positions = (0 until CELL_COUNT).filter { it != gapPosition }
+        val tiles = (0 until CELL_COUNT).filter { it != GAP }
+        val reduced = Array(CELL_COUNT - 1) { row ->
+            DoubleArray(CELL_COUNT - 1) { col ->
+                cost[positions[row]][tiles[col]]
+            }
+        }
+
+        val reducedAssignment = minimumAssignment(reduced)
+        val result = IntArray(CELL_COUNT)
+        result[gapPosition] = GAP
+        for (row in reducedAssignment.indices) {
+            result[positions[row]] = tiles[reducedAssignment[row]]
+        }
+        return result
+    }
+
     private fun minimumAssignment(cost: Array<DoubleArray>): IntArray {
         val n = cost.size
         val rowPotential = DoubleArray(n + 1)
@@ -535,7 +576,17 @@ object PuzzleEngine {
 
     private fun findSolution(start: IntArray): List<Int>? {
         if (start.indices.all { start[it] == it }) return emptyList()
-        for (weight in doubleArrayOf(2.5, 4.5, 7.0)) {
+
+        // First use the same practical row/column reduction strategy used by
+        // RuneLite's puzzle solver. It produces much shorter, more human-friendly
+        // paths than trying to greedily solve the entire 5x5 board at once.
+        FastPuzzleSolver.solve(start)?.let { fast ->
+            if (fast.isNotEmpty()) return fast.toList()
+        }
+
+        // Safety fallback for an unusual board where the deterministic solver
+        // cannot finish.
+        for (weight in doubleArrayOf(2.0, 3.0, 4.5)) {
             weightedSearch(start, weight)?.let { return it }
         }
         return null
