@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,6 +22,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -381,7 +384,7 @@ private fun SelectablePuzzlePicture(
 ) {
     val touchModifier = if (enabled) {
         Modifier.pointerInput(onPress) {
-            androidx.compose.foundation.gestures.detectTapGestures { offset ->
+            detectTapGestures { offset ->
                 if (size.width > 0 && size.height > 0) {
                     val col = (offset.x / size.width * 5f).toInt().coerceIn(0, 4)
                     val row = (offset.y / size.height * 5f).toInt().coerceIn(0, 4)
