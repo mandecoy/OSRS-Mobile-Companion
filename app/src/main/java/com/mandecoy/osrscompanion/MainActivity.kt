@@ -3,6 +3,8 @@ package com.mandecoy.osrscompanion
 import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.content.pm.PackageManager
@@ -1211,6 +1213,13 @@ private fun PuzzleBrowserScreen(nav: NavHostController, tool: WebTool) {
 
 @Composable
 private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
+    val context = LocalContext.current
+    val supportsSavedName = tool.title in setOf(
+        "Wise Old Man", "Skill Calculators", "Quests",
+        "Achievement Diaries", "OSRS Wiki", "DPS Calculator"
+    )
+    var playerName by remember { mutableStateOf(SavedPlayerName.get(context)) }
+    var page by remember { mutableStateOf<WebView?>(null) }
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uploadCallback?.onReceiveValue(uri?.let { arrayOf(it) })
@@ -1219,12 +1228,53 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
 
     Screen(nav, tool.title) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Text(
-                tool.subtitle,
-                color = Parchment,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(8.dp)
-            )
+            if (supportsSavedName) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    OutlinedTextField(
+                        value = playerName,
+                        onValueChange = {
+                            playerName = it.take(12)
+                            SavedPlayerName.save(context, playerName)
+                        },
+                        label = { Text("Saved OSRS username") },
+                        placeholder = { Text("Player name") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("OSRS username", playerName))
+                        },
+                        enabled = playerName.isNotBlank()
+                    ) {
+                        Text("Copy", color = RuneGold)
+                    }
+                    TextButton(
+                        onClick = { page?.let { SavedPlayerName.fillRelevantFields(it, it.url, playerName) } },
+                        enabled = playerName.isNotBlank()
+                    ) {
+                        Text("Fill", color = RuneGold)
+                    }
+                }
+                Text(
+                    "Saved locally and shared across Wise Old Man, calculators, quests, diaries, Wiki, and DPS. Fill works when the website provides a recognizable player field.",
+                    color = Parchment,
+                    fontSize = 10.sp,
+                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(horizontal = 10.dp, vertical = 2.dp)
+                )
+            } else {
+                Text(
+                    tool.subtitle,
+                    color = Parchment,
+                    fontSize = 12.sp,
+                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(8.dp)
+                )
+            }
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->
@@ -1244,7 +1294,22 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                             settings.textZoom = 100
                         }
 
-                        webViewClient = WebViewClient()
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                if (supportsSavedName && view != null) {
+                                    SavedPlayerName.fillRelevantFields(view, url, SavedPlayerName.get(context))
+                                    // Some calculator sites render the player field after navigation.
+                                    view.postDelayed({
+                                        if (view.url == url) {
+                                            SavedPlayerName.fillRelevantFields(
+                                                view, url, SavedPlayerName.get(context)
+                                            )
+                                        }
+                                    }, 1200L)
+                                }
+                            }
+                        }
                         webChromeClient = object : WebChromeClient() {
                             override fun onShowFileChooser(
                                 webView: WebView?,
@@ -1257,6 +1322,7 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                                 return true
                             }
                         }
+                        page = this
                         loadUrl(tool.url)
                     }
                 }
