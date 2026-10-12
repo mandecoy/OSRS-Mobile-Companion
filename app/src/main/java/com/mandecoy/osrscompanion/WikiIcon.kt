@@ -45,7 +45,7 @@ fun iconUrlForAction(action: QuickAction): String {
             "cactus" in label -> osrsWikiImage("Cactus_(grown).png")
             "calquat" in label -> osrsWikiImage("Calquat_tree_(grown).png")
             "coral" in label -> osrsWikiImage("Elkhorn_coral.png")
-            else -> osrsWikiImage("Sleeping_cap.png")
+            else -> osrsWikiImage("Watch.png")
         }
     }
 
@@ -65,7 +65,8 @@ fun iconUrlForAction(action: QuickAction): String {
         "web/diaries" -> osrsWikiImage("Achievement_diary_cape.png")
         "web/clues" -> osrsWikiImage("Clue_scroll_(hard).png")
         "web/news" -> osrsWikiImage("Newspaper.png")
-        "timers" -> osrsWikiImage("Sleeping_cap.png")
+        "timers" -> osrsWikiImage("Watch.png")
+        "floating" -> osrsWikiImage("Magical_orb.png")
         else -> if (action.icon.startsWith("http")) action.icon else osrsWikiImage("Book.png")
     }
 }
