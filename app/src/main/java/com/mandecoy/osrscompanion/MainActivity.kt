@@ -133,7 +133,8 @@ private val WebTools = mapOf(
     "news" to WebTool("Old School News", "https://secure.runescape.com/m=news/archive?oldschool=1", "Official Old School RuneScape news archive."),
     "theoatrix_skills" to WebTool("Theoatrix Skill Guides", "https://www.theoatrix.net/skill-guides", "Skill levelling guides from Theoatrix."),
     "theoatrix_afk" to WebTool("Theoatrix AFK Methods", "https://www.theoatrix.net/osrs-guides/categories/most-afk-methods", "AFK methods and guides from Theoatrix."),
-    "wiki_guides" to WebTool("OSRS Wiki Guides", "https://oldschool.runescape.wiki/w/Category:Guides", "RuneScape Wiki guides directory."),
+    "wiki_guides" to WebTool("OSRS Wiki Strategy Guides", "https://oldschool.runescape.wiki/w/Guides#Strategy_guides", "Boss, activity, and combat strategy guides."),
+    "money_guides" to WebTool("OSRS Money Making Guide", "https://oldschool.runescape.wiki/w/Money_making_guide", "Compare money-making methods, requirements, and GP per hour."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
@@ -158,7 +159,7 @@ private val Tools = listOf(
     Tool("Quests", "Quest list + requirements", "web/quests", osrsWikiImage("Quest_point_cape.png")),
     Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", osrsWikiImage("Achievement_diary_cape.png")),
     Tool("Clue Helper", "Treasure trail references", "web/clues", osrsWikiImage("Clue_scroll_(hard).png")),
-    Tool("Guides", "Theoatrix + OSRS Wiki", "guides", osrsWikiImage("Book_of_knowledge.png")),
+    Tool("Guides", "Theoatrix + OSRS Wiki", "guides", osrsWikiImage("Cake_of_guidance.png")),
     Tool("Old School News", "Official Jagex news archive", "web/news", osrsWikiImage("Newspaper.png")),
     Tool("Quick Widgets", "Customize four shortcuts", "quick", osrsWikiImage("Wrench.png")),
     Tool("About", "Source + privacy", "about", osrsWikiImage("Book.png"))
@@ -192,7 +193,7 @@ private val QuickChoices = listOf(
     QuickAction("quests", "Quests", osrsWikiImage("Quest_point_cape.png"), route = "web/quests"),
     QuickAction("diaries", "Achievement Diaries", osrsWikiImage("Achievement_diary_cape.png"), route = "web/diaries"),
     QuickAction("clues", "Clue Helper", osrsWikiImage("Clue_scroll_(hard).png"), route = "web/clues"),
-    QuickAction("guides", "Guides", osrsWikiImage("Book_of_knowledge.png"), route = "guides"),
+    QuickAction("guides", "Guides", osrsWikiImage("Cake_of_guidance.png"), route = "guides"),
     QuickAction("news", "Old School News", osrsWikiImage("Newspaper.png"), route = "web/news")
 )
 object QuickActionStore {
@@ -1469,7 +1470,8 @@ private fun GuidesScreen(nav: NavHostController) {
     val guideItems = listOf(
         Triple("Theoatrix Skill Guides", "Levelling guides for OSRS skills", "theoatrix_skills"),
         Triple("Theoatrix AFK Methods", "Low-attention training methods", "theoatrix_afk"),
-        Triple("OSRS Wiki Guides", "Community-maintained guides by topic", "wiki_guides")
+        Triple("OSRS Wiki Strategy Guides", "Boss and activity strategy guides", "wiki_guides"),
+        Triple("OSRS Wiki Money Making", "Money-making methods and GP/hour estimates", "money_guides")
     )
     Screen(nav, "Guides") { padding ->
         LazyColumn(
