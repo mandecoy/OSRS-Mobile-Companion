@@ -1236,6 +1236,7 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
     )
     var playerName by remember { mutableStateOf(SavedPlayerName.get(context)) }
     var page by remember { mutableStateOf<WebView?>(null) }
+    var nameReaderStarted by remember { mutableStateOf(false) }
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uploadCallback?.onReceiveValue(uri?.let { arrayOf(it) })
@@ -1323,6 +1324,20 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                                             )
                                         }
                                     }, 1200L)
+                                    if (!nameReaderStarted) {
+                                        nameReaderStarted = true
+                                        // Observe existing user/player fields in the embedded
+                                        // site's DOM. Stop when the WebView is detached.
+                                        view.postDelayed(object : Runnable {
+                                            override fun run() {
+                                                if (!view.isAttachedToWindow) return
+                                                SavedPlayerName.readEnteredName(view, view.url) {
+                                                    entered -> playerName = entered
+                                                }
+                                                view.postDelayed(this, 2500L)
+                                            }
+                                        }, 2500L)
+                                    }
                                 }
                             }
                         }
