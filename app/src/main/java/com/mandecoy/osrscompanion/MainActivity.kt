@@ -1021,7 +1021,11 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                         OutlinedButton(
                             onClick = {
                                 if (!editingTiles) {
-                                    correctedBoard = solved.board.copyOf()
+                                    // Reopen the last edits, including unfinished drafts with
+                                    // odd parity. Never discard work just by closing the editor.
+                                    correctedBoard = PuzzleEngine.savedBoardForScreenshot(
+                                        context, solved
+                                    )?.copyOf() ?: solved.board.copyOf()
                                     previousCorrection = null
                                 }
                                 editingTiles = !editingTiles
