@@ -2,6 +2,16 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.12
+
+### Visibility and home-screen customization
+- Saved OSRS username toolbar has an eye and Hide/Show control, remembering the collapsed state across supported web tools.
+- Collapsing the username controls does not delete the saved name or disable its player-field autofill.
+- Reorder Widgets has an eye icon on every Quick Widget and main tool card to hide or unhide its Home-screen tile without losing the shortcut, its order, or saved settings.
+- Visibility persists locally across restarts; hidden items remain in Reorder Widgets and can be restored any time.
+- Hidden Quick Widget state follows the shortcut when it is dragged to another slot.
+- Added Guides to the main tool reorder list.
+
 ## 0.5.11
 
 ### Guides
