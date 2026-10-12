@@ -40,7 +40,9 @@ fun AnnotatedPuzzlePreview(
     solved: PuzzleAnalysis,
     start: Int
 ) {
-    val hints = PuzzleEngine.moveHints(solved.board, solved.moves, start, 5)
+    // Only show the current move on the board. Later moves happen after the
+    // board changes, so drawing all five labels on one static image is misleading.
+    val hints = PuzzleEngine.moveHints(solved.board, solved.moves, start, 1)
     val gap = PuzzleEngine.gapPositionAt(solved.board, solved.moves, start)
     val previewAtStart = remember(solved, start) { renderPuzzleAtMove(solved, start) }
 
@@ -56,7 +58,7 @@ fun AnnotatedPuzzlePreview(
         ) {
             Image(
                 bitmap = previewAtStart.asImageBitmap(),
-                contentDescription = "Uploaded Puzzle Box with move overlays",
+                contentDescription = "Recognized Puzzle Box with current move overlay",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
@@ -134,8 +136,6 @@ fun AnnotatedPuzzlePreview(
 
 
 private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
-    if (moveCount <= 0) return solved.preview
-
     val side = 5
     val gapTile = 24
     val state = solved.board.copyOf()
@@ -149,20 +149,15 @@ private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
         gap = tapped
     }
 
-    // The uploaded preview is the original board. Map each solved tile identity
-    // back to the position where its pixels came from in that original image.
-    val sourcePositionForTile = IntArray(25)
-    solved.board.forEachIndexed { position, tile ->
-        sourcePositionForTile[tile] = position
-    }
-
-    val source = solved.preview
+    // Rebuild the current board from the canonical solved reference image.
+    // This avoids carrying screenshot crop/grid artifacts forward between moves.
+    val source = solved.reference
     val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 
     for (destination in 0 until 25) {
         val tile = state[destination]
-        val sourcePosition = sourcePositionForTile[tile]
+        val sourcePosition = tile
 
         val srcCol = sourcePosition % side
         val srcRow = sourcePosition / side

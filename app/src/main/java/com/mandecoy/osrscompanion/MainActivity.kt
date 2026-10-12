@@ -816,14 +816,14 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     var analysis by remember { mutableStateOf<PuzzleAnalysis?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var page by remember { mutableIntStateOf(0) }
+    var moveIndex by remember { mutableIntStateOf(0) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         analysis = null
         error = null
         loading = true
-        page = 0
+        moveIndex = 0
 
         Thread {
             val bitmap = try {
@@ -855,7 +855,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Upload the screenshot from OSRS. The app reads that exact 5×5 layout and calculates a solution. The puzzle preview below is intentionally not interactive.",
+                    "Upload the screenshot from OSRS. The app identifies it against the seven official puzzle images, reconstructs the board, and calculates a fast solution. The preview below advances one move at a time so the empty space and target tile always stay accurate.",
                     color = Parchment
                 )
             }
@@ -884,8 +884,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
             analysis?.let { solved ->
                 item {
-                    val overlayStart = page * 5
-                    AnnotatedPuzzlePreview(solved = solved, start = overlayStart)
+                    AnnotatedPuzzlePreview(solved = solved, start = moveIndex)
                 }
 
                 item {
@@ -908,14 +907,38 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+                } else if (moveIndex >= solved.moves.size) {
+                    item {
+                        Text(
+                            "Solved state — the empty space should now be in the bottom-right corner.",
+                            color = TextLight,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    item {
+                        OutlinedButton(
+                            onClick = { moveIndex = (solved.moves.size - 1).coerceAtLeast(0) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Previous move")
+                        }
+                    }
                 } else {
-                    val start = page * 5
-                    val end = minOf(solved.moves.size, start + 5)
-                    val batch = PuzzleEngine.instructions(solved.board, solved.moves, start, 5)
+                    val batchStart = (moveIndex / 5) * 5
+                    val batchEnd = minOf(solved.moves.size, batchStart + 5)
+                    val batch = PuzzleEngine.instructions(
+                        solved.board,
+                        solved.moves,
+                        batchStart,
+                        batchEnd - batchStart
+                    )
 
                     item {
                         Text(
-                            "Moves " + (start + 1) + "–" + end + " of " + solved.moves.size,
+                            "Move " + (moveIndex + 1) + " of " + solved.moves.size,
                             color = TextLight,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
@@ -926,7 +949,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
                     item {
                         Text(
-                            "The preview now shows the board as it should look at the start of this batch. Follow the numbered gold labels in order; the arrow matches the move card below.",
+                            "The preview is the exact board state before this move. Tap only the gold-marked tile in OSRS, then press Next move here.",
                             color = Parchment,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
@@ -940,18 +963,35 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             batch.forEachIndexed { index, arrow ->
+                                val absoluteMove = batchStart + index
+                                val active = absoluteMove == moveIndex
                                 Card(
-                                    modifier = Modifier.weight(1f).height(88.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
-                                    border = BorderStroke(1.dp, RuneGold)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(88.dp)
+                                        .clickable { moveIndex = absoluteMove },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (active) Color(0xff4b443c) else Color(0xff2e2924)
+                                    ),
+                                    border = BorderStroke(if (active) 3.dp else 1.dp, RuneGold)
                                 ) {
                                     Column(
                                         Modifier.fillMaxSize(),
                                         verticalArrangement = Arrangement.Center,
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        Text((start + index + 1).toString(), color = Parchment, fontSize = 11.sp)
-                                        Text(arrow, color = RuneGold, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            (absoluteMove + 1).toString(),
+                                            color = if (active) RuneGold else Parchment,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        Text(
+                                            arrow,
+                                            color = RuneGold,
+                                            fontSize = 34.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
                                 }
                             }
@@ -964,26 +1004,29 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { if (page > 0) page-- },
-                                enabled = page > 0,
+                                onClick = { if (moveIndex > 0) moveIndex-- },
+                                enabled = moveIndex > 0,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Previous")
+                                Text("Previous move")
                             }
                             Button(
-                                onClick = { if (end < solved.moves.size) page++ },
-                                enabled = end < solved.moves.size,
+                                onClick = { if (moveIndex < solved.moves.size) moveIndex++ },
+                                enabled = moveIndex < solved.moves.size,
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = RuneGold, contentColor = Color.Black)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = RuneGold,
+                                    contentColor = Color.Black
+                                )
                             ) {
-                                Text(if (end < solved.moves.size) "Next 5" else "Done")
+                                Text(if (moveIndex == solved.moves.size - 1) "Done" else "Next move")
                             }
                         }
                     }
 
                     item {
                         Text(
-                            "If you make a different move than shown, upload a fresh screenshot and the app will solve the new layout.",
+                            "The five cards are the current group of moves; the highlighted card is the move shown on the board. If the OSRS board ever stops matching the preview, upload a fresh screenshot.",
                             color = StoneLight,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
@@ -997,7 +1040,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                         onClick = {
                             analysis = null
                             error = null
-                            page = 0
+                            moveIndex = 0
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -1122,7 +1165,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.5.4", color = Parchment)
+            Text("Version 0.5.5", color = Parchment)
             Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)

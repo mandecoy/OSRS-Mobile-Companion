@@ -2,6 +2,20 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.5
+
+### Fixed
+
+- Puzzle Box recognition now locks the empty slot separately so a dark artwork tile cannot be mistaken for the gap
+- Puzzle previews are reconstructed from the canonical solved puzzle artwork instead of repeatedly cutting up the uploaded screenshot
+- Only the current move is marked on the board; later moves are no longer drawn onto an earlier board state
+- Puzzle guidance now advances one move at a time, keeping the target tile and empty space synchronized
+
+### Changed
+
+- Puzzle solving now uses a RuneLite-style row/column reduction strategy before the final search, replacing the long whole-board weighted search as the primary solver
+- The five move cards remain visible as a group, with the current move highlighted
+
 ## 0.5.4
 
 ### Fixed
