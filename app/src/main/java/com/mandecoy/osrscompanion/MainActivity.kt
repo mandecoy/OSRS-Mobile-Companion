@@ -121,56 +121,97 @@ private val WebTools = mapOf(
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
-data class Tool(val title: String, val subtitle: String, val route: String)
+data class Tool(val title: String, val subtitle: String, val route: String, val icon: String)
 
 private val Tools = listOf(
-    Tool("Timers", "AFK + farming runs", "timers"),
-    Tool("Puzzle Box", "Screenshot solver", "web/puzzle"),
-    Tool("Light Box", "Master clue solver", "web/light"),
-    Tool("GE Prices", "Live market prices", "web/prices"),
-    Tool("OSRS Wiki", "Search anything", "web/wiki"),
-    Tool("Wise Old Man", "Player lookup", "web/wise"),
-    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars"),
-    Tool("Skill Calculators", "All skills", "web/skills"),
-    Tool("DPS Calculator", "Combat damage calculator", "web/dps"),
-    Tool("Quests & Diaries", "Guides + requirements", "web/quests"),
-    Tool("Clue Helper", "Treasure trail references", "web/clues"),
-    Tool("Quick Actions", "Customize two shortcuts", "quick"),
-    Tool("About", "Source + privacy", "about")
+    Tool("Timers", "AFK + farming runs", "timers", "⏱️"),
+    Tool("Puzzle Box", "Screenshot solver", "web/puzzle", "🧩"),
+    Tool("Light Box", "Master clue solver", "web/light", "💡"),
+    Tool("GE Prices", "Live market prices", "web/prices", "🪙"),
+    Tool("OSRS Wiki", "Search anything", "web/wiki", "📖"),
+    Tool("Wise Old Man", "Player lookup", "web/wise", "🧙"),
+    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", "🌠"),
+    Tool("Skill Calculators", "All skills", "web/skills", "📊"),
+    Tool("DPS Calculator", "Combat damage calculator", "web/dps", "⚔️"),
+    Tool("Quests & Diaries", "Guides + requirements", "web/quests", "📜"),
+    Tool("Clue Helper", "Treasure trail references", "web/clues", "🗺️"),
+    Tool("Quick Widgets", "Customize four shortcuts", "quick", "⚙️"),
+    Tool("About", "Source + privacy", "about", "ℹ️")
 )
 
 data class QuickAction(
     val id: String,
     val label: String,
+    val icon: String,
     val route: String? = null,
     val seconds: Long? = null
 )
 
 private val QuickChoices = listOf(
-    QuickAction("afk5", "AFK 5 min", seconds = 300),
-    QuickAction("afk10", "AFK 10 min", seconds = 600),
-    QuickAction("herb", "Herb run", seconds = 80 * 60),
-    QuickAction("bird", "Birdhouse", seconds = 50 * 60),
-    QuickAction("puzzle", "Puzzle Box", route = "web/puzzle"),
-    QuickAction("stars", "Shooting Stars", route = "web/stars"),
-    QuickAction("wiki", "OSRS Wiki", route = "web/wiki"),
-    QuickAction("timers", "Timers", route = "timers"),
-    QuickAction("dps", "DPS Calculator", route = "web/dps")
+    QuickAction("afk5", "AFK 5m", "💤", seconds = 300),
+    QuickAction("afk10", "AFK 10m", "💤", seconds = 600),
+    QuickAction("herb", "Herb", "🌿", seconds = 80 * 60),
+    QuickAction("bird", "Birdhouse", "🐦", seconds = 50 * 60),
+    QuickAction("puzzle", "Puzzle", "🧩", route = "web/puzzle"),
+    QuickAction("stars", "Stars", "🌠", route = "web/stars"),
+    QuickAction("wiki", "Wiki", "📖", route = "web/wiki"),
+    QuickAction("dps", "DPS", "⚔️", route = "web/dps"),
+    QuickAction("timers", "Timers", "⏱️", route = "timers")
 )
 
 object QuickActionStore {
-    private const val PREFS = "quick_actions"
+    private const val PREFS = "quick_actions_v2"
 
-    fun load(context: Context): Pair<QuickAction, QuickAction> {
+    private val defaults = listOf(
+        QuickChoices.first { it.id == "afk5" },
+        QuickChoices.first { it.id == "herb" },
+        QuickChoices.first { it.id == "puzzle" },
+        QuickChoices.first { it.id == "stars" }
+    )
+
+    fun load(context: Context): List<QuickAction> {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val first = QuickChoices.firstOrNull { it.id == prefs.getString("one", "afk5") } ?: QuickChoices[0]
-        val second = QuickChoices.firstOrNull { it.id == prefs.getString("two", "herb") } ?: QuickChoices[2]
-        return first to second
+        return (1..4).map { slot ->
+            decode(prefs.getString("slot" + slot, null)) ?: defaults[slot - 1]
+        }
     }
 
     fun save(context: Context, slot: Int, action: QuickAction) {
+        if (slot !in 1..4) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putString(if (slot == 1) "one" else "two", action.id).apply()
+            .edit()
+            .putString("slot" + slot, encode(action))
+            .apply()
+    }
+
+    private fun encode(action: QuickAction): String {
+        val safeLabel = action.label.replace("|", " ")
+        return if (action.seconds != null) {
+            "timer|" + safeLabel + "|" + action.seconds + "|" + action.icon
+        } else {
+            "route|" + safeLabel + "|" + (action.route ?: "timers") + "|" + action.icon
+        }
+    }
+
+    private fun decode(raw: String?): QuickAction? {
+        if (raw.isNullOrBlank()) return null
+        val parts = raw.split("|")
+        if (parts.size < 4) return null
+        return when (parts[0]) {
+            "timer" -> QuickAction(
+                id = "custom_" + parts[1] + "_" + parts[2],
+                label = parts[1],
+                icon = parts[3],
+                seconds = parts[2].toLongOrNull()
+            )
+            "route" -> QuickAction(
+                id = "route_" + parts[2],
+                label = parts[1],
+                icon = parts[3],
+                route = parts[2]
+            )
+            else -> null
+        }
     }
 }
 
@@ -199,7 +240,11 @@ private fun CompanionApp() {
             composable("web/{key}") { entry ->
                 val key = entry.arguments?.getString("key") ?: "wiki"
                 val tool = WebTools[key] ?: WebTools.getValue("wiki")
-                if (key == "puzzle") PuzzleBrowserScreen(nav, tool) else WebToolScreen(nav, tool)
+                if (key == "puzzle") {
+                    PuzzleBrowserScreen(nav, tool)
+                } else {
+                    WebToolScreen(nav, tool)
+                }
             }
         }
     }
@@ -235,46 +280,77 @@ private fun HomeScreen(nav: NavHostController) {
         }
 
         item(span = { GridItemSpan(2) }) {
-            Text("QUICK ACTIONS", color = RuneGold, fontWeight = FontWeight.Bold)
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("QUICK WIDGETS", color = RuneGold, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { nav.navigate("quick") }) {
+                    Text("Edit", color = Parchment)
+                }
+            }
         }
-        item { QuickCard(quick.first, context, nav) { revision++ } }
-        item { QuickCard(quick.second, context, nav) { revision++ } }
+
+        item(span = { GridItemSpan(2) }) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                quick.forEach { action ->
+                    QuickMiniCard(
+                        action = action,
+                        context = context,
+                        nav = nav,
+                        modifier = Modifier.weight(1f)
+                    ) { revision++ }
+                }
+            }
+        }
 
         item(span = { GridItemSpan(2) }) {
             Text("TOOLS", color = RuneGold, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         }
+
         items(Tools) { tool ->
-            StoneButton(tool.title, tool.subtitle) { nav.navigate(tool.route) }
+            StoneButton(tool) { nav.navigate(tool.route) }
         }
     }
 }
 
 @Composable
-private fun StoneButton(title: String, subtitle: String, onClick: () -> Unit) {
+private fun StoneButton(tool: Tool, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .height(104.dp)
+            .height(116.dp)
             .border(2.dp, RuneGoldDark, RoundedCornerShape(8.dp))
             .background(
                 Brush.verticalGradient(listOf(StoneLight, Stone, Color(0xff38322c))),
                 RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(10.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(title, color = TextLight, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(5.dp))
-        Text(subtitle, color = Parchment, fontSize = 11.sp, textAlign = TextAlign.Center)
+        Text(tool.icon, fontSize = 28.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(tool.title, color = TextLight, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(3.dp))
+        Text(tool.subtitle, color = Parchment, fontSize = 11.sp, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
-private fun QuickCard(action: QuickAction, context: Context, nav: NavHostController, onChange: () -> Unit) {
+private fun QuickMiniCard(
+    action: QuickAction,
+    context: Context,
+    nav: NavHostController,
+    modifier: Modifier = Modifier,
+    onChange: () -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(80.dp).clickable {
+        modifier = modifier.height(76.dp).clickable {
             if (action.seconds != null) {
                 val timer = TimerEntry.create(action.label, action.seconds)
                 TimerStore.add(context, timer)
@@ -288,43 +364,73 @@ private fun QuickCard(action: QuickAction, context: Context, nav: NavHostControl
         border = BorderStroke(1.dp, RuneGold)
     ) {
         Column(
-            Modifier.fillMaxSize().padding(10.dp),
+            Modifier.fillMaxSize().padding(4.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(action.label, color = RuneGold, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-            Text(if (action.seconds != null) "Tap to start" else "Tap to open", color = Parchment, fontSize = 11.sp)
+            Text(action.icon, fontSize = 20.sp)
+            Text(
+                action.label,
+                color = RuneGold,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
         }
     }
 }
 
-data class FarmPreset(val label: String, val seconds: Long)
+data class FarmPreset(val label: String, val seconds: Long, val icon: String)
 
 private val FarmPresets = listOf(
-    FarmPreset("Herb run", 80 * 60),
-    FarmPreset("Birdhouse run", 50 * 60),
-    FarmPreset("Allotments", 40 * 60),
-    FarmPreset("Hops", 40 * 60),
-    FarmPreset("Bushes", 100 * 60),
-    FarmPreset("Oak tree", 200 * 60),
-    FarmPreset("Willow tree", 240 * 60),
-    FarmPreset("Maple tree", 320 * 60),
-    FarmPreset("Yew tree", 400 * 60),
-    FarmPreset("Magic tree", 480 * 60),
-    FarmPreset("Fruit tree", 960 * 60),
-    FarmPreset("Teak tree", 4480 * 60),
-    FarmPreset("Mahogany tree", 5120 * 60),
-    FarmPreset("Cactus", 560 * 60),
-    FarmPreset("Calquat", 1280 * 60)
+    FarmPreset("Herb run", 80 * 60, "🌿"),
+    FarmPreset("Birdhouse run", 50 * 60, "🐦"),
+    FarmPreset("Allotments", 40 * 60, "🌱"),
+    FarmPreset("Hops", 40 * 60, "🌱"),
+    FarmPreset("Bushes", 100 * 60, "🌿"),
+    FarmPreset("Oak tree", 200 * 60, "🌳"),
+    FarmPreset("Willow tree", 240 * 60, "🌳"),
+    FarmPreset("Maple tree", 320 * 60, "🌳"),
+    FarmPreset("Yew tree", 400 * 60, "🌳"),
+    FarmPreset("Magic tree", 480 * 60, "🌳"),
+    FarmPreset("Fruit tree", 960 * 60, "🍎"),
+    FarmPreset("Teak tree", 4480 * 60, "🌳"),
+    FarmPreset("Mahogany tree", 5120 * 60, "🌳"),
+    FarmPreset("Cactus", 560 * 60, "🌵"),
+    FarmPreset("Calquat", 1280 * 60, "🌳")
 )
 
 @Composable
 private fun TimersScreen(nav: NavHostController) {
     val context = LocalContext.current
-    var input by remember { mutableStateOf("300") }
+    var label by remember { mutableStateOf("AFK check") }
+    var minutesInput by remember { mutableStateOf("5") }
+    var secondsInput by remember { mutableStateOf("0") }
     var refresh by remember { mutableIntStateOf(0) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val active = remember(refresh, now / 1000) { TimerStore.active(context) }
+
+    fun selectedSeconds(): Long {
+        val minutes = (minutesInput.toLongOrNull() ?: 0L).coerceIn(0L, 30L)
+        val seconds = (secondsInput.toLongOrNull() ?: 0L).coerceIn(0L, 59L)
+        return (minutes * 60L + seconds).coerceIn(1L, 1800L)
+    }
+
+    fun pinCustom(slot: Int) {
+        val total = selectedSeconds()
+        val safeLabel = label.trim().ifBlank { "AFK " + formatSeconds(total) }
+        QuickActionStore.save(
+            context,
+            slot,
+            QuickAction(
+                id = "custom_" + System.currentTimeMillis(),
+                label = safeLabel,
+                icon = "💤",
+                seconds = total
+            )
+        )
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -339,25 +445,51 @@ private fun TimersScreen(nav: NavHostController) {
             contentPadding = PaddingValues(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            item {
-                ExactAlarmCard(context)
-            }
+            item { ExactAlarmCard(context) }
+
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("AFK CHECK", color = RuneGold, fontWeight = FontWeight.Bold)
-                        Text("Set 1 second through 30 minutes. It can notify while the app is closed.", color = Parchment)
+                        Text("💤  CUSTOM / AFK TIMER", color = RuneGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Choose minutes and seconds. The timer can notify even after you close the app.",
+                            color = Parchment
+                        )
+
                         OutlinedTextField(
-                            value = input,
-                            onValueChange = { input = it.filter(Char::isDigit).take(4) },
-                            label = { Text("Seconds (1–1800)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            value = label,
+                            onValueChange = { label = it.take(24) },
+                            label = { Text("Timer name") },
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = minutesInput,
+                                onValueChange = { minutesInput = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Minutes") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedTextField(
+                                value = secondsInput,
+                                onValueChange = { secondsInput = it.filter(Char::isDigit).take(2) },
+                                label = { Text("Seconds") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Text("Maximum: 30 minutes", color = StoneLight, fontSize = 11.sp)
+
                         Button(
                             onClick = {
-                                val seconds = (input.toLongOrNull() ?: 1L).coerceIn(1L, 1800L)
-                                val timer = TimerEntry.create("AFK check", seconds)
+                                val total = selectedSeconds()
+                                val safeLabel = label.trim().ifBlank { "AFK check" }
+                                val timer = TimerEntry.create(safeLabel, total)
                                 TimerStore.add(context, timer)
                                 TimerScheduler.schedule(context, timer)
                                 refresh++
@@ -365,7 +497,23 @@ private fun TimersScreen(nav: NavHostController) {
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(containerColor = RuneGold, contentColor = Color.Black)
                         ) {
-                            Text("Start AFK timer")
+                            Text("Start " + formatSeconds(selectedSeconds()) + " timer")
+                        }
+
+                        Text("PIN THIS EXACT TIMER TO A QUICK WIDGET", color = Parchment, fontSize = 11.sp)
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            (1..4).forEach { slot ->
+                                OutlinedButton(
+                                    onClick = { pinCustom(slot) },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Slot " + slot, fontSize = 10.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -384,7 +532,7 @@ private fun TimersScreen(nav: NavHostController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(timer.label, color = TextLight, fontWeight = FontWeight.Bold)
+                                Text("💤 " + timer.label, color = TextLight, fontWeight = FontWeight.Bold)
                                 Text(formatSeconds(left), color = RuneGold)
                             }
                             TextButton(onClick = {
@@ -406,7 +554,7 @@ private fun TimersScreen(nav: NavHostController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(Modifier.weight(1f)) {
-                            Text(preset.label, color = TextLight, fontWeight = FontWeight.Bold)
+                            Text(preset.icon + " " + preset.label, color = TextLight, fontWeight = FontWeight.Bold)
                             Text(formatSeconds(preset.seconds), color = Parchment, fontSize = 12.sp)
                         }
                         Button(
@@ -452,36 +600,57 @@ private fun ExactAlarmCard(context: Context) {
 @Composable
 private fun QuickActionsScreen(nav: NavHostController) {
     val context = LocalContext.current
-    var pair by remember { mutableStateOf(QuickActionStore.load(context)) }
+    var current by remember { mutableStateOf(QuickActionStore.load(context)) }
 
-    Screen(nav, "Quick Actions") { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+    Screen(nav, "Edit Quick Widgets") { padding ->
+        LazyColumn(
+            Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Pick the two one-tap shortcuts shown on the home screen.", color = Parchment)
-            Text("SLOT 1", color = RuneGold, fontWeight = FontWeight.Bold)
-            QuickChoices.forEach { action ->
-                OutlinedButton(
-                    onClick = {
-                        QuickActionStore.save(context, 1, action)
-                        pair = QuickActionStore.load(context)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (pair.first.id == action.id) "✓ " + action.label else action.label)
-                }
+            item {
+                Text(
+                    "Choose four tools or preset timers for the top row. Custom timer values can be pinned directly from the Timers screen.",
+                    color = Parchment
+                )
             }
-            Text("SLOT 2", color = RuneGold, fontWeight = FontWeight.Bold)
-            QuickChoices.forEach { action ->
-                OutlinedButton(
-                    onClick = {
-                        QuickActionStore.save(context, 2, action)
-                        pair = QuickActionStore.load(context)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(if (pair.second.id == action.id) "✓ " + action.label else action.label)
+
+            items(4) { index ->
+                val slot = index + 1
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            "SLOT " + slot + " — " + current[index].icon + " " + current[index].label,
+                            color = RuneGold,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        QuickChoices.chunked(3).forEach { row ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                row.forEach { action ->
+                                    OutlinedButton(
+                                        onClick = {
+                                            QuickActionStore.save(context, slot, action)
+                                            current = QuickActionStore.load(context)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(horizontal = 2.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(action.icon + " " + action.label, fontSize = 9.sp, maxLines = 1)
+                                    }
+                                }
+                                repeat(3 - row.size) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -519,7 +688,7 @@ private fun PuzzleBrowserScreen(nav: NavHostController, tool: WebTool) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "The puzzle preview did not render reliably inside Android WebView. This opens the solver in a browser tab so the puzzle image, arrows, and 5-step mode can render correctly.",
+                "Upload a screenshot of your Puzzle Box. The solver opens in a browser tab so its puzzle image and arrows render correctly on Android.",
                 color = Parchment
             )
             Button(
@@ -529,7 +698,7 @@ private fun PuzzleBrowserScreen(nav: NavHostController, tool: WebTool) {
                 Text("Open Puzzle Box Solver")
             }
             Text(
-                "Upload the screenshot, select 5 steps, make those five moves in OSRS, then return for the next five.",
+                "Choose 5 steps, make those five moves in OSRS, then return for the next five.",
                 color = TextLight,
                 textAlign = TextAlign.Center
             )
@@ -590,8 +759,8 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.1.1", color = Parchment)
-            Text("Free and open source. Timer and quick-action data stays on your device.", color = TextLight)
+            Text("Version 0.2.0", color = Parchment)
+            Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
             Text("Not affiliated with, endorsed by, or sponsored by Jagex Ltd.", color = StoneLight, fontSize = 12.sp)
