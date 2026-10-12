@@ -21,6 +21,15 @@ object PuzzleBubbleStore {
     private const val PREVIEW_FILE = "puzzle_overlay_preview.png"
     @Volatile private var cached: PuzzleAnalysis? = null
 
+    fun isVerified(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean("board_verified", false)
+
+    fun setVerified(context: Context, yes: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean("board_verified", yes).apply()
+    }
+
     @Synchronized
     fun save(context: Context, analysis: PuzzleAnalysis, start: Int = 0) {
         cached = analysis
@@ -45,6 +54,7 @@ object PuzzleBubbleStore {
 
     @Synchronized
     fun load(context: Context): PuzzleAnalysis? {
+        if (!isVerified(context)) return null
         cached?.let { return it }
         return try {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
