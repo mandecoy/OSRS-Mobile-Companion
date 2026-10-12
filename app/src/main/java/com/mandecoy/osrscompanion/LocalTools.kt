@@ -2,6 +2,8 @@ package com.mandecoy.osrscompanion
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +33,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -49,10 +57,12 @@ private val LocalText = Color(0xfff4ead4)
 object ToolOrderStore {
     private const val PREFS = "tool_layout_v1"
     private const val KEY = "route_order"
+    private const val HIDDEN_TOOLS = "hidden_tool_routes"
+    private const val HIDDEN_QUICK = "hidden_quick_slots"
 
     val defaults = listOf(
         "timers", "floating", "ge_tools", "high_alch", "portfolio", "fairy_rings", "notepad",
-        "puzzle", "lightbox", "web/prices", "web/wiki", "web/wise", "web/stars",
+        "puzzle", "lightbox", "guides", "web/prices", "web/wiki", "web/wise", "web/stars",
         "web/skills", "web/dps", "web/quests", "web/diaries", "web/clues", "web/news",
         "quick", "about"
     )
@@ -67,6 +77,7 @@ object ToolOrderStore {
         "notepad" to "Notepad",
         "puzzle" to "Puzzle Box",
         "lightbox" to "Light Box",
+        "guides" to "Guides",
         "web/prices" to "Grand Exchange Prices",
         "web/wiki" to "OSRS Wiki",
         "web/wise" to "Wise Old Man",
@@ -111,6 +122,59 @@ object ToolOrderStore {
         }
     }
 
+    // These flags hide home screen cards WITHOUT deleting their configurations
+    // or removing them from the drag-and-drop reorder list.
+    fun hiddenRoutes(context: Context): Set<String> =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(HIDDEN_TOOLS, "")?.split("|")?.filter { it.isNotBlank() }
+            ?.toSet() ?: emptySet()
+
+    fun isToolVisible(context: Context, route: String): Boolean =
+        route !in hiddenRoutes(context)
+
+    fun setToolVisible(context: Context, route: String, visible: Boolean) {
+        val hidden = hiddenRoutes(context).toMutableSet()
+        if (visible) hidden.remove(route) else hidden.add(route)
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(HIDDEN_TOOLS, hidden.joinToString("|")).apply()
+    }
+
+    fun hiddenQuickSlots(context: Context): Set<Int> =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(HIDDEN_QUICK, "")?.split(",")?.mapNotNull { it.toIntOrNull() }
+            ?.filter { it in 1..4 }?.toSet() ?: emptySet()
+
+    fun isQuickVisible(context: Context, slot: Int): Boolean =
+        slot !in hiddenQuickSlots(context)
+
+    fun setQuickVisible(context: Context, slot: Int, visible: Boolean) {
+        val hidden = hiddenQuickSlots(context).toMutableSet()
+        if (visible) hidden.remove(slot) else hidden.add(slot)
+        saveHiddenQuick(context, hidden)
+    }
+
+    fun swapQuickVisibility(context: Context, a: Int, b: Int) {
+        if (a !in 1..4 || b !in 1..4 || a == b) return
+        val hidden = hiddenQuickSlots(context).toMutableSet()
+        val aHidden = a in hidden
+        val bHidden = b in hidden
+        if (aHidden != bHidden) {
+            if (aHidden) {
+                hidden.remove(a)
+                hidden.add(b)
+            } else {
+                hidden.remove(b)
+                hidden.add(a)
+            }
+            saveHiddenQuick(context, hidden)
+        }
+    }
+
+    private fun saveHiddenQuick(context: Context, hidden: Set<Int>) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString(HIDDEN_QUICK, hidden.sorted().joinToString(",")).apply()
+    }
+
     fun reset(context: Context) = save(context, defaults)
 
     fun saveOrder(context: Context, order: List<String>) = save(context, order)
@@ -129,6 +193,10 @@ fun LayoutEditorScreen(nav: NavHostController) {
     val order = remember {
         mutableStateListOf<String>().apply { addAll(ToolOrderStore.load(context)) }
     }
+    var visibilityRevision by remember { mutableStateOf(0) }
+    // Both hidden and visible cards stay in the editor for easy restoration.
+    val hiddenTools = remember(visibilityRevision) { ToolOrderStore.hiddenRoutes(context) }
+    val hiddenQuick = remember(visibilityRevision) { ToolOrderStore.hiddenQuickSlots(context) }
     val quickItems = remember {
         mutableStateListOf<QuickDragItem>().apply {
             QuickActionStore.load(context).forEachIndexed { index, action ->
@@ -144,6 +212,9 @@ fun LayoutEditorScreen(nav: NavHostController) {
         if (to !in quickItems.indices) return false
 
         QuickActionStore.swap(context, from + 1, to + 1)
+        // Hidden state follows the dragged shortcut, not its old slot number.
+        ToolOrderStore.swapQuickVisibility(context, from + 1, to + 1)
+        visibilityRevision++
         val item = quickItems.removeAt(from)
         quickItems.add(to, item)
         return true
@@ -169,7 +240,7 @@ fun LayoutEditorScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Press and hold a card, then drag it up or down and drop it where you want. Changes save automatically.",
+                    "Hold and drag to reorder. Tap the eye icon to hide or show any Quick Widget or main tool on Home; hidden items stay here and keep their settings.",
                     color = LocalParchment
                 )
             }
@@ -186,6 +257,13 @@ fun LayoutEditorScreen(nav: NavHostController) {
                             DraggableOrderCard(
                                 title = item.action.label,
                                 subtitle = "Slot " + (index + 1),
+                                visible = index + 1 !in hiddenQuick,
+                                onToggleVisible = {
+                                    ToolOrderStore.setQuickVisible(
+                                        context, index + 1, index + 1 in hiddenQuick
+                                    )
+                                    visibilityRevision++
+                                },
                                 onMove = { delta -> moveQuick(item.token, delta) }
                             )
                         }
@@ -205,6 +283,11 @@ fun LayoutEditorScreen(nav: NavHostController) {
                             DraggableOrderCard(
                                 title = ToolOrderStore.title(route),
                                 subtitle = null,
+                                visible = route !in hiddenTools,
+                                onToggleVisible = {
+                                    ToolOrderStore.setToolVisible(context, route, route in hiddenTools)
+                                    visibilityRevision++
+                                },
                                 onMove = { delta -> moveTool(route, delta) }
                             )
                         }
@@ -237,10 +320,47 @@ private data class QuickDragItem(
     val action: QuickAction
 )
 
+/**
+ * Local vector eye icon, avoiding external image downloads or heavyweight
+ * icon dependencies. A diagonal slash indicates hidden.
+ */
+@Composable
+fun EyeVisibilityIcon(visible: Boolean, color: Color = LocalGold) {
+    Canvas(modifier = Modifier.size(26.dp)) {
+        val w = size.width
+        val h = size.height
+        val line = 2.1.dp.toPx()
+        val eye = Path().apply {
+            moveTo(w * 0.07f, h * 0.50f)
+            cubicTo(w * 0.25f, h * 0.14f, w * 0.75f, h * 0.14f, w * 0.93f, h * 0.50f)
+            cubicTo(w * 0.75f, h * 0.86f, w * 0.25f, h * 0.86f, w * 0.07f, h * 0.50f)
+            close()
+        }
+        drawPath(eye, color, style = Stroke(width = line))
+        drawCircle(color, radius = w * 0.12f, center = Offset(w * .50f, h * .50f))
+        if (!visible) {
+            drawLine(
+                color = LocalStone,
+                start = Offset(w * 0.06f, h * 0.94f),
+                end = Offset(w * 0.94f, h * 0.06f),
+                strokeWidth = line * 3f
+            )
+            drawLine(
+                color = color,
+                start = Offset(w * 0.06f, h * 0.94f),
+                end = Offset(w * 0.94f, h * 0.06f),
+                strokeWidth = line
+            )
+        }
+    }
+}
+
 @Composable
 private fun DraggableOrderCard(
     title: String,
     subtitle: String?,
+    visible: Boolean,
+    onToggleVisible: () -> Unit,
     onMove: (Int) -> Boolean
 ) {
     val density = LocalDensity.current
@@ -313,7 +433,20 @@ private fun DraggableOrderCard(
                 if (subtitle != null) {
                     Text(subtitle, color = LocalGold, fontSize = 11.sp)
                 }
-                Text(title, color = LocalText, fontWeight = FontWeight.Bold)
+                Text(
+                    title,
+                    color = if (visible) LocalText else LocalParchment.copy(alpha = 0.55f),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            IconButton(
+                onClick = onToggleVisible,
+                modifier = Modifier
+                    .size(48.dp)
+                    .semantics { contentDescription =
+                        (if (visible) "Hide " else "Show ") + title }
+            ) {
+                EyeVisibilityIcon(visible, LocalGold)
             }
             Column(
                 modifier = Modifier.height(64.dp),
