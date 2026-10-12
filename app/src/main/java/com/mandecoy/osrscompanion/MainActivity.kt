@@ -858,6 +858,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         moveIndex = 0
         fixingGap = false
         boardVerified = false
+        PuzzleBubbleStore.setVerified(context, false)
         editingTiles = false
         selectedTilePosition = -1
 
@@ -950,6 +951,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                         Button(
                             onClick = {
                                 boardVerified = true
+                                PuzzleBubbleStore.setVerified(context, true)
                                 editingTiles = false
                                 fixingGap = false
                                 error = null
@@ -1016,6 +1018,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             } else {
                                                 analysis = corrected
                                                 boardVerified = false
+                                                PuzzleBubbleStore.setVerified(context, false)
                                                 editingTiles = false
                                                 moveIndex = 0
                                                 error = null
@@ -1068,6 +1071,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                                 analysis = corrected
                                                 correctedBoard = corrected.board.copyOf()
                                                 boardVerified = false
+                                                PuzzleBubbleStore.setVerified(context, false)
                                                 moveIndex = 0
                                                 error = null
                                             }
@@ -1082,6 +1086,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     OutlinedButton(
                         onClick = {
                             boardVerified = false
+                            PuzzleBubbleStore.setVerified(context, false)
                             editingTiles = false
                             fixingGap = false
                             moveIndex = 0
@@ -1166,6 +1171,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             analysis = corrected
                                             correctedBoard = corrected.board.copyOf()
                                             boardVerified = false
+                                            PuzzleBubbleStore.setVerified(context, false)
                                             moveIndex = 0
                                         }
                                     }
