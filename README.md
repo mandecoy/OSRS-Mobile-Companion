@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.11**  
+**Current stable version: 0.5.12**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -19,6 +19,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Farming timer icons show grown trees rather than saplings
 - Farming/run timer presets
 - Four independent Quick Widget slots, with Timers → AFK / Farming / Dailies & Weeklies categories
+- Reorder screen eye icons hide or restore individual Quick Widgets and main tool cards without losing their order or settings
 - Categorized, scrollable Quick Widget menus for Timers, Farm Runs, and Tools
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
@@ -44,6 +45,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Skill calculators
 - RuneScape Wiki DPS calculator
 - One saved OSRS username shared across Wise Old Man, Skill Calculators, Quest/Diary reference pages, Wiki and DPS Calculator; profile fields autofill on supported services
+- One-tap eye icon collapses username controls across web tools without deleting the saved username or stopping autofill
 - Separate Quests and Achievement Diaries tools
 - Guides hub with Theoatrix Skill Guides, Theoatrix AFK Methods, OSRS Wiki Strategy Guides, and OSRS Wiki Money Making Guide; Cake of guidance icon
 - Clue Helper
