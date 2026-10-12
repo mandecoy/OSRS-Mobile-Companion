@@ -849,6 +849,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     var editingTiles by remember { mutableStateOf(false) }
     var selectedTilePosition by remember { mutableIntStateOf(-1) }
     var correctedBoard by remember { mutableStateOf(IntArray(25) { it }) }
+    var previousCorrection by remember { mutableStateOf<IntArray?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -976,7 +977,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(if (editingTiles) "Close tile correction" else "Wrong tiles? Edit recognized tile positions")
+                            Text(if (editingTiles) "Close tile editor" else "Fix ANY tile / EMPTY (tap to swap)")
                         }
                     }
                     if (editingTiles) {
@@ -987,20 +988,59 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 board = correctedBoard,
                                 selectedPosition = selectedTilePosition,
                                 onSelectPosition = { selectedTilePosition = it },
+                                onSwapPosition = { other ->
+                                    if (selectedTilePosition in 0..24 && other in 0..24 &&
+                                        selectedTilePosition != other) {
+                                        previousCorrection = correctedBoard.copyOf()
+                                        val updated = correctedBoard.copyOf()
+                                        val temp = updated[selectedTilePosition]
+                                        updated[selectedTilePosition] = updated[other]
+                                        updated[other] = temp
+                                        correctedBoard = updated
+                                        selectedTilePosition = -1
+                                    }
+                                },
                                 onChooseTile = { targetPosition ->
-                                    if (selectedTilePosition in 0..24) {
-                                        val newBoard = correctedBoard.copyOf()
-                                        val other = newBoard.indexOf(targetPosition)
-                                        if (other >= 0) {
-                                            val previous = newBoard[selectedTilePosition]
-                                            newBoard[selectedTilePosition] = targetPosition
-                                            newBoard[other] = previous
-                                            correctedBoard = newBoard
+                                    if (selectedTilePosition in 0..24 && targetPosition in 0..24) {
+                                        val updated = correctedBoard.copyOf()
+                                        val other = updated.indexOf(targetPosition)
+                                        if (other >= 0 && other != selectedTilePosition) {
+                                            previousCorrection = correctedBoard.copyOf()
+                                            val old = updated[selectedTilePosition]
+                                            updated[selectedTilePosition] = targetPosition
+                                            updated[other] = old
+                                            correctedBoard = updated
                                         }
                                         selectedTilePosition = -1
                                     }
                                 }
                             )
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        previousCorrection?.let {
+                                            correctedBoard = it.copyOf()
+                                            previousCorrection = null
+                                            selectedTilePosition = -1
+                                        }
+                                    },
+                                    enabled = previousCorrection != null,
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Undo last swap") }
+                                OutlinedButton(
+                                    onClick = {
+                                        correctedBoard = solved.board.copyOf()
+                                        previousCorrection = null
+                                        selectedTilePosition = -1
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("Reset tiles") }
+                            }
                         }
                         item {
                             Button(
@@ -1014,7 +1054,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                         handler.post {
                                             loading = false
                                             if (corrected == null) {
-                                                error = "The edited board is unsolvable. Verify the empty square and picture tile labels; an odd-parity arrangement cannot be reached by sliding tiles."
+                                                error = "The corrected 5×5 board is not a valid sliding-puzzle state yet. Check that you selected the real EMPTY square and corrected every mismatched tile. Your changes are still here; undo or keep editing."
                                             } else {
                                                 analysis = corrected
                                                 boardVerified = false
