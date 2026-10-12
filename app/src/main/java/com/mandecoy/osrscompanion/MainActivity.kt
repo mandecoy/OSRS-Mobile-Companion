@@ -98,6 +98,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         TimerNotifications.ensureChannel(this)
+        GameReminderScheduler.restore(this)
+        PriceAlertStore.ensureScheduled(this)
         setContent { CompanionApp() }
 
         if (
@@ -132,10 +134,16 @@ private val WebTools = mapOf(
 data class Tool(val title: String, val subtitle: String, val route: String, val icon: String)
 
 private val Tools = listOf(
-    Tool("Timers", "AFK + farming runs", "timers", osrsWikiImage("Sleeping_cap.png")),
+    Tool("Timers", "AFK + farming + reminders", "timers", osrsWikiImage("Sleeping_cap.png")),
+    Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Watch.png")),
+    Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_clerk.png")),
+    Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
+    Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Coins_10000.png")),
+    Tool("Fairy Rings", "Code + location directory", "fairy_rings", osrsWikiImage("Fairy_ring.png")),
+    Tool("Notepad", "Persistent local notes", "notepad", osrsWikiImage("Book.png")),
     Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box_zulrah.png")),
     Tool("Light Box", "Master clue solver", "lightbox", osrsWikiImage("Light_box.png")),
-    Tool("GE Prices", "Live market prices", "web/prices", osrsWikiImage("Coins_10000.png")),
+    Tool("GE Prices", "RuneScape Wiki prices", "web/prices", osrsWikiImage("Coins_10000.png")),
     Tool("OSRS Wiki", "Search anything", "web/wiki", osrsWikiImage("Old School RuneScape Wiki logo (alternate).png")),
     Tool("Wise Old Man", "Player lookup", "web/wise", osrsWikiImage("Wise_Old_Man.png")),
     Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", osrsWikiImage("Shooting_Star_Display.png")),
@@ -158,6 +166,12 @@ data class QuickAction(
 
 private val QuickChoices = listOf(
     QuickAction("timers", "Timers", osrsWikiImage("Sleeping_cap.png"), route = "timers"),
+    QuickAction("floating", "Floating Companion", osrsWikiImage("Watch.png"), route = "floating"),
+    QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_clerk.png"), route = "ge_tools"),
+    QuickAction("high_alch", "High Alch", osrsWikiImage("High_Level_Alchemy.png"), route = "high_alch"),
+    QuickAction("portfolio", "Portfolio", osrsWikiImage("Coins_10000.png"), route = "portfolio"),
+    QuickAction("fairy_rings", "Fairy Rings", osrsWikiImage("Fairy_ring.png"), route = "fairy_rings"),
+    QuickAction("notepad", "Notepad", osrsWikiImage("Book.png"), route = "notepad"),
     QuickAction("herb", "Herb Run", osrsWikiImage("Ranarr_weed.png"), seconds = 80 * 60),
     QuickAction("bird", "Birdhouse", osrsWikiImage("Bird_house.png"), seconds = 50 * 60),
     QuickAction("puzzle", "Puzzle Box", osrsWikiImage("Puzzle_box_zulrah.png"), route = "puzzle"),
@@ -201,6 +215,15 @@ object QuickActionStore {
             .edit()
             .putString("slot" + slot, encode(action))
             .apply()
+    }
+
+    fun swap(context: Context, firstSlot: Int, secondSlot: Int) {
+        if (firstSlot !in 1..4 || secondSlot !in 1..4 || firstSlot == secondSlot) return
+        val current = load(context)
+        val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        editor.putString("slot" + firstSlot, encode(current[secondSlot - 1]))
+        editor.putString("slot" + secondSlot, encode(current[firstSlot - 1]))
+        editor.apply()
     }
 
     private fun encode(action: QuickAction): String {
@@ -254,6 +277,17 @@ private fun CompanionApp() {
         NavHost(navController = nav, startDestination = "home") {
             composable("home") { HomeScreen(nav) }
             composable("timers") { TimersScreen(nav) }
+            composable("floating") { FloatingToolsScreen(nav) }
+            composable("ge_tools") { GeToolsScreen(nav) }
+            composable("high_alch") { HighAlchScreen(nav) }
+            composable("portfolio") { PortfolioScreen(nav) }
+            composable("fairy_rings") { FairyRingDirectoryScreen(nav) }
+            composable("notepad") { PersistentNotepadScreen(nav) }
+            composable("layout") { LayoutEditorScreen(nav) }
+            composable("market_item/{id}") { entry ->
+                val id = entry.arguments?.getString("id")?.toIntOrNull() ?: -1
+                MarketItemDetailScreen(nav, id)
+            }
             composable("quick") { QuickWidgetMenuScreen(nav) }
             composable("puzzle") { NativePuzzleScreen(nav) }
             composable("lightbox") { NativeLightBoxScreen(nav) }
@@ -276,6 +310,8 @@ private fun HomeScreen(nav: NavHostController) {
     val context = LocalContext.current
     var revision by remember { mutableIntStateOf(0) }
     val quick = remember(revision) { QuickActionStore.load(context) }
+    val orderedTools = ToolOrderStore.ordered(context, Tools.map { it.route })
+        .mapNotNull { route -> Tools.firstOrNull { it.route == route } }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -329,10 +365,18 @@ private fun HomeScreen(nav: NavHostController) {
         }
 
         item(span = { GridItemSpan(2) }) {
-            Text("TOOLS", color = RuneGold, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("TOOLS", color = RuneGold, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                TextButton(onClick = { nav.navigate("layout") }) {
+                    Text("Reorder", color = Parchment)
+                }
+            }
         }
 
-        items(Tools) { tool ->
+        items(orderedTools, key = { it.route }) { tool ->
             StoneButton(tool) { nav.navigate(tool.route) }
         }
     }
@@ -467,6 +511,7 @@ private fun TimersScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item { ExactAlarmCard(context) }
+            item { GameRemindersCard(context) }
 
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
@@ -1058,8 +1103,8 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.4.0", color = Parchment)
-            Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
+            Text("Version 0.5.0", color = Parchment)
+            Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
             Text("Not affiliated with, endorsed by, or sponsored by Jagex Ltd.", color = StoneLight, fontSize = 12.sp)

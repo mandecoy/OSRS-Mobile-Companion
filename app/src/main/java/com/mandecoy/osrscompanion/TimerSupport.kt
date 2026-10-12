@@ -178,6 +178,7 @@ class BootReceiver : BroadcastReceiver() {
             intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED
         ) {
             TimerStore.active(context).forEach { TimerScheduler.schedule(context, it) }
+            GameReminderScheduler.restore(context)
         }
     }
 }
