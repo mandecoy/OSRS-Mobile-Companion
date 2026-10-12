@@ -924,6 +924,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
             }
 
             analysis?.let { solved ->
+                val recognizedSolvable = !solved.inferredParityRepair &&
+                    (solved.moves.isNotEmpty() || solved.board.indices.all { solved.board[it] == it })
                 if (!boardVerified) {
                     item {
                         Text(
@@ -935,14 +937,14 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     }
                     item {
                         Text(
-                            "Compare the actual OSRS screenshot (left) against the tile arrangement reconstructed by this app (right). If ANY tile is different, do not follow the solution. Fix the recognized tiles first.",
+                            "Compare the original screenshot FIRST with the reconstructed picture BELOW. If any tile differs, use Fix ANY tile / EMPTY before displaying tap instructions.",
                             color = TextLight, fontSize = 13.sp
                         )
                     }
                     if (solved.inferredParityRepair) {
                         item {
                             Text(
-                                "WARNING: the screenshot recognition found an impossible board and had to GUESS a correction. Please inspect every tile before confirming.",
+                                "Recognition detected an IMPOSSIBLE tile arrangement (odd parity). No moves will be shown. Use Fix ANY tile / EMPTY to correct tile assignments, then recalculate.",
                                 color = Color(0xffffaa80), fontWeight = FontWeight.Bold
                             )
                         }
@@ -958,13 +960,14 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 error = null
                                 PuzzleBubbleStore.save(context.applicationContext, solved, 0)
                             },
-                            enabled = !loading,
+                            enabled = !loading && recognizedSolvable,
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = RuneGold, contentColor = Color.Black
                             )
                         ) {
-                            Text("Yes, all 25 cells match — Show solution")
+                            Text(if (recognizedSolvable) "Yes, all 25 cells match — Show solution"
+                                 else "Fix tile recognition before solving")
                         }
                     }
                     item {
