@@ -1075,6 +1075,17 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         settings.domStorageEnabled = true
                         settings.allowContentAccess = true
                         settings.setSupportZoom(true)
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+
+                        if (tool.url.contains("secure.runescape.com")) {
+                            // Jagex's legacy news archive is desktop-width and otherwise
+                            // opens cropped/over-zoomed inside a phone WebView.
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+                            settings.textZoom = 100
+                        }
+
                         webViewClient = WebViewClient()
                         webChromeClient = object : WebChromeClient() {
                             override fun onShowFileChooser(
@@ -1104,7 +1115,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.5.3", color = Parchment)
+            Text("Version 0.5.4", color = Parchment)
             Text("Free and open source. Timers, reminders, portfolio entries, watchlists, notes, and layout settings stay on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
