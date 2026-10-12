@@ -208,6 +208,137 @@ internal fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap 
     return output
 }
 
+/**
+ * Show the real screenshot alongside the board our recognizer THINKS it read.
+ * The difference is essential: a valid solution to misidentified tiles is
+ * still wrong in the real game.
+ */
+@Composable
+fun PuzzleRecognitionComparison(solved: PuzzleAnalysis) {
+    val predicted = remember(solved) { renderPuzzleAtMove(solved, 0) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("REAL SCREENSHOT", color = OverlayParchment, fontSize = 11.sp,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth())
+            Image(
+                bitmap = solved.preview.asImageBitmap(),
+                contentDescription = "Original screenshot showing the true tile arrangement",
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                    .border(1.dp, OverlayGold)
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text("APP RECOGNITION", color = OverlayParchment, fontSize = 11.sp,
+                fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth())
+            Image(
+                bitmap = predicted.asImageBitmap(),
+                contentDescription = "App-recognized tile arrangement to compare",
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                    .border(1.dp, OverlayGold)
+            )
+        }
+    }
+}
+
+/**
+ * Editable recognition: tap any cell of the REAL screenshot, then pick the
+ * corresponding tile (1-24) in the SOLVED artwork. Changing an assignment
+ * swaps the two existing tile labels so every tile remains unique.
+ */
+@Composable
+fun PuzzleTileAssignmentPicker(
+    screenshot: Bitmap,
+    reference: Bitmap,
+    board: IntArray,
+    selectedPosition: Int,
+    onSelectPosition: (Int) -> Unit,
+    onChooseTile: (Int) -> Unit
+) {
+    Text(
+        "1. Tap any tile in your real screenshot. The gold border marks your selection.",
+        color = OverlayParchment, fontSize = 12.sp
+    )
+    LabeledPuzzleCells(
+        bitmap = screenshot,
+        labels = board,
+        selectedPosition = selectedPosition,
+        clickable = true,
+        onPress = onSelectPosition
+    )
+    Text(
+        "2. Tap WHERE that picture belongs in the solved image below. The app swaps its label automatically. You can repeat for multiple tiles.",
+        color = OverlayParchment, fontSize = 12.sp
+    )
+    LabeledPuzzleCells(
+        bitmap = reference,
+        labels = IntArray(25) { it },
+        selectedPosition = -1,
+        clickable = selectedPosition >= 0,
+        onPress = onChooseTile
+    )
+}
+
+@Composable
+private fun LabeledPuzzleCells(
+    bitmap: Bitmap,
+    labels: IntArray,
+    selectedPosition: Int,
+    clickable: Boolean,
+    onPress: (Int) -> Unit
+) {
+    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).border(2.dp, OverlayGold)) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Puzzle tiles and their solved positions",
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize()
+        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            for (r in 0 until 5) {
+                Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    for (c in 0 until 5) {
+                        val pos = r * 5 + c
+                        val tile = labels[pos]
+                        Box(
+                            modifier = Modifier.weight(1f).fillMaxSize()
+                                .border(
+                                    if (selectedPosition == pos) 3.dp else 0.5.dp,
+                                    if (selectedPosition == pos) OverlayGold
+                                    else Color.White.copy(alpha = 0.45f)
+                                )
+                                .then(if (clickable) Modifier.clickable { onPress(pos) }
+                                      else Modifier),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                if (tile == 24) "EMPTY" else (tile + 1).toString(),
+                                color = Color.White,
+                                fontSize = if (tile == 24) 9.sp else 16.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier
+                                    .background(
+                                        if (selectedPosition == pos)
+                                            OverlayGold.copy(alpha = 0.95f)
+                                        else Color.Black.copy(alpha = 0.70f),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Tap any of the actual 5x5 screenshot cells to correct a mistaken gap. */
 @Composable
 fun EmptySpacePicker(screenshot: Bitmap, onSelect: (Int) -> Unit) {
