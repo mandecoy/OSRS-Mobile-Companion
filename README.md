@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.7**  
+**Current stable version: 0.5.8**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -20,6 +20,9 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Categorized, scrollable Quick Widget menus for Timers, Farm Runs, and Tools
 - Custom timer Quick Widgets
 - Native Puzzle Box screenshot recognition and solving
+- Required screenshot-versus-recognized-board review before any solution is shown
+- Correct any incorrectly recognized picture tile by selecting its solved position, then recalculate
+- Flag speculative parity corrections so the user knows recognition might be wrong
 - Numbered move overlays directly on the Puzzle Box tiles
 - All five Puzzle Box taps numbered on the board at once, with Previous 5 / Next 5 navigation
 - Non-focusable floating Puzzle Box over OSRS with its own group navigation
@@ -39,6 +42,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - RuneScape Wiki DPS calculator
 - One saved OSRS username shared across Wise Old Man, Skill Calculators, Quest/Diary reference pages, Wiki and DPS Calculator; profile fields autofill on supported services
 - Separate Quests and Achievement Diaries tools
+- Guides hub with Theoatrix Skill Guides, Theoatrix AFK Methods, and OSRS Wiki Guide Directory
 - Clue Helper
 - Official Old School News archive
 - OSRS Wiki-sourced artwork throughout the app
