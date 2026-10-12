@@ -816,7 +816,10 @@ private fun NativePuzzleScreen(nav: NavHostController) {
     var analysis by remember { mutableStateOf<PuzzleAnalysis?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // moveIndex is always the start of a five-move page.
     var moveIndex by remember { mutableIntStateOf(0) }
+    var previewStep by remember { mutableIntStateOf(0) }
+    var fixingGap by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -824,6 +827,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         error = null
         loading = true
         moveIndex = 0
+        previewStep = 0
+        fixingGap = false
 
         Thread {
             val bitmap = try {
@@ -855,7 +860,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Upload the screenshot from OSRS. The app identifies it against the seven official puzzle images, reconstructs the board, and calculates a fast solution. The preview below advances one move at a time so the empty space and target tile always stay accurate.",
+                    "Upload the screenshot from OSRS. The app identifies it against the seven official puzzle images, reconstructs the board, and calculates a fast solution. Moves are shown in groups of five. Use Next 5 after completing a group, or tap an individual instruction for its preview.",
                     color = Parchment
                 )
             }
@@ -884,7 +889,70 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
             analysis?.let { solved ->
                 item {
-                    AnnotatedPuzzlePreview(solved = solved, start = moveIndex)
+                    AnnotatedPuzzlePreview(
+                        solved = solved,
+                        start = (moveIndex + previewStep).coerceAtMost(solved.moves.size)
+                    )
+                }
+
+                item {
+                    OutlinedButton(
+                        onClick = { fixingGap = !fixingGap },
+                        enabled = !loading,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (fixingGap) "Cancel empty-square correction" else "Wrong EMPTY square? Correct it")
+                    }
+                }
+                if (fixingGap) {
+                    item {
+                        Text(
+                            "Tap the REAL empty square in your original OSRS screenshot below. The app will reidentify all tiles and recalculate the solution.",
+                            color = TextLight,
+                            fontSize = 14.sp
+                        )
+                    }
+                    item {
+                        EmptySpacePicker(solved.preview) { position ->
+                            if (!loading) {
+                                loading = true
+                                fixingGap = false
+                                Thread {
+                                    val corrected = try {
+                                        PuzzleEngine.correctEmptyPosition(solved, position)
+                                    } catch (_: Exception) { null }
+                                    handler.post {
+                                        loading = false
+                                        if (corrected == null) {
+                                            error = "Couldn't solve with that empty square. Please upload a new screenshot."
+                                        } else {
+                                            error = null
+                                            analysis = corrected
+                                            moveIndex = 0
+                                            previewStep = 0
+                                        }
+                                    }
+                                }.start()
+                            }
+                        }
+                    }
+                }
+
+                if (solved.moves.size > 120) {
+                    item {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xff4a302a)),
+                            border = BorderStroke(1.dp, RuneGoldDark)
+                        ) {
+                            Text(
+                                "This route is unusually long (" + solved.moves.size +
+                                    " moves). The screenshot may have been read incorrectly. " +
+                                    "Check the EMPTY square above before following these instructions.",
+                                modifier = Modifier.padding(12.dp),
+                                color = TextLight
+                            )
+                        }
+                    }
                 }
 
                 item {
@@ -920,16 +988,19 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     }
                     item {
                         OutlinedButton(
-                            onClick = { moveIndex = (solved.moves.size - 1).coerceAtLeast(0) },
+                            onClick = {
+                                moveIndex = ((solved.moves.size - 1).coerceAtLeast(0) / 5) * 5
+                                previewStep = 0
+                            },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Previous move")
+                            Text("Previous 5")
                         }
                     }
                 } else {
-                    val batchStart = (moveIndex / 5) * 5
+                    val batchStart = moveIndex
                     val batchEnd = minOf(solved.moves.size, batchStart + 5)
-                    val batch = PuzzleEngine.instructions(
+                    val batch = PuzzleEngine.moveHints(
                         solved.board,
                         solved.moves,
                         batchStart,
@@ -938,7 +1009,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
                     item {
                         Text(
-                            "Move " + (moveIndex + 1) + " of " + solved.moves.size,
+                            "Moves " + (batchStart + 1) + "–" + batchEnd + " of " + solved.moves.size,
                             color = TextLight,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
@@ -949,7 +1020,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
 
                     item {
                         Text(
-                            "The preview is the exact board state before this move. Tap only the gold-marked tile in OSRS, then press Next move here.",
+                            "Tap the five tiles in order using the arrows and row/column labels below. The preview shows the highlighted instruction. Press Next 5 after completing the group in OSRS.",
                             color = Parchment,
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
@@ -962,14 +1033,14 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            batch.forEachIndexed { index, arrow ->
+                            batch.forEachIndexed { index, hint ->
                                 val absoluteMove = batchStart + index
-                                val active = absoluteMove == moveIndex
+                                val active = previewStep == index
                                 Card(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(88.dp)
-                                        .clickable { moveIndex = absoluteMove },
+                                        .height(96.dp)
+                                        .clickable { previewStep = index },
                                     colors = CardDefaults.cardColors(
                                         containerColor = if (active) Color(0xff4b443c) else Color(0xff2e2924)
                                     ),
@@ -987,10 +1058,15 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                             fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
                                         )
                                         Text(
-                                            arrow,
+                                            hint.arrow,
                                             color = RuneGold,
-                                            fontSize = 34.sp,
+                                            fontSize = 30.sp,
                                             fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            "R" + (hint.position / 5 + 1) + " C" + (hint.position % 5 + 1),
+                                            color = Parchment,
+                                            fontSize = 10.sp
                                         )
                                     }
                                 }
@@ -1004,14 +1080,20 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { if (moveIndex > 0) moveIndex-- },
+                                onClick = {
+                                    moveIndex = (moveIndex - 5).coerceAtLeast(0)
+                                    previewStep = 0
+                                },
                                 enabled = moveIndex > 0,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text("Previous move")
+                                Text("Previous 5")
                             }
                             Button(
-                                onClick = { if (moveIndex < solved.moves.size) moveIndex++ },
+                                onClick = {
+                                    moveIndex = (moveIndex + 5).coerceAtMost(solved.moves.size)
+                                    previewStep = 0
+                                },
                                 enabled = moveIndex < solved.moves.size,
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
@@ -1019,14 +1101,14 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                     contentColor = Color.Black
                                 )
                             ) {
-                                Text(if (moveIndex == solved.moves.size - 1) "Done" else "Next move")
+                                Text(if (batchEnd == solved.moves.size) "Done" else "Next 5")
                             }
                         }
                     }
 
                     item {
                         Text(
-                            "The five cards are the current group of moves; the highlighted card is the move shown on the board. If the OSRS board ever stops matching the preview, upload a fresh screenshot.",
+                            "Each card is one tap in this five-move group. Tapping a card previews that specific board state; Previous 5 and Next 5 jump between groups. If the board doesn't match OSRS, correct the empty square or upload a fresh screenshot.",
                             color = StoneLight,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
@@ -1041,6 +1123,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                             analysis = null
                             error = null
                             moveIndex = 0
+                            previewStep = 0
+                            fixingGap = false
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
