@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import java.util.PriorityQueue
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -126,7 +128,18 @@ object PuzzleEngine {
             val bitmap = try {
                 context.assets.open("puzzles/$file").use { BitmapFactory.decodeStream(it) }
             } catch (_: Exception) {
-                null
+                try {
+                    val connection = (URL("https://oldschool.runescape.wiki/w/Special:Redirect/file/" + file)
+                        .openConnection() as HttpURLConnection).apply {
+                        instanceFollowRedirects = true
+                        connectTimeout = 10_000
+                        readTimeout = 15_000
+                        setRequestProperty("User-Agent", "OSRS-Companion-Tool/0.2.3")
+                    }
+                    connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                } catch (_: Exception) {
+                    null
+                }
             } ?: continue
             val area = refineGrid(bitmap, Rect(0, 0, bitmap.width, bitmap.height))
                 ?: Rect(0, 0, bitmap.width, bitmap.height)
