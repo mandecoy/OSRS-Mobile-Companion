@@ -419,12 +419,23 @@ private fun QuickMiniCard(
 ) {
     Card(
         modifier = modifier.height(76.dp).clickable {
-            if (action.seconds != null) {
-                val timer = TimerEntry.create(action.label, action.seconds)
-                TimerStore.add(context, timer)
-                TimerScheduler.schedule(context, timer)
-            } else {
-                nav.navigate(action.route ?: "timers")
+            when (action.route) {
+                "reminder/tears" -> GameReminderStore.setTearsEnabled(
+                    context, !GameReminderStore.tearsEnabled(context)
+                )
+                "reminder/zaff" -> GameReminderStore.setZaffEnabled(
+                    context, !GameReminderStore.zaffEnabled(context)
+                )
+                "reminder/miscellania" -> GameReminderStore.setMiscellaniaEnabled(
+                    context, !GameReminderStore.miscellaniaEnabled(context)
+                )
+                else -> if (action.seconds != null) {
+                    val timer = TimerEntry.create(action.label, action.seconds)
+                    TimerStore.add(context, timer)
+                    TimerScheduler.schedule(context, timer)
+                } else {
+                    nav.navigate(action.route ?: "timers")
+                }
             }
             onChange()
         },
@@ -438,7 +449,12 @@ private fun QuickMiniCard(
         ) {
             WikiIcon(iconUrlForAction(action), action.label, 30.dp)
             Text(
-                action.label,
+                when (action.route) {
+                    "reminder/tears" -> if (GameReminderStore.tearsEnabled(context)) "Tears: ON" else "Tears: OFF"
+                    "reminder/zaff" -> if (GameReminderStore.zaffEnabled(context)) "Zaff: ON" else "Zaff: OFF"
+                    "reminder/miscellania" -> if (GameReminderStore.miscellaniaEnabled(context)) "Misc: ON" else "Misc: OFF"
+                    else -> action.label
+                },
                 color = RuneGold,
                 fontWeight = FontWeight.Bold,
                 fontSize = 9.sp,
