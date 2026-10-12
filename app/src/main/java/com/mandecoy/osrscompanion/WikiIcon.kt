@@ -50,6 +50,7 @@ fun iconUrlForAction(action: QuickAction): String {
     }
 
     return when (action.route) {
+        "guides" -> osrsWikiImage("Cake_of_guidance.png")
         "puzzle", "web/puzzle" -> osrsWikiImage("Puzzle_box_zulrah.png")
         "lightbox", "web/light" -> osrsWikiImage("Light_box.png")
         "ge_tools" -> osrsWikiImage("Grand_Exchange_Clerk.png")
