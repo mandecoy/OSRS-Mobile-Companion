@@ -2,12 +2,14 @@ package com.mandecoy.osrscompanion
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,13 +23,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,6 +113,8 @@ object ToolOrderStore {
 
     fun reset(context: Context) = save(context, defaults)
 
+    fun saveOrder(context: Context, order: List<String>) = save(context, order)
+
     private fun save(context: Context, order: List<String>) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
@@ -117,9 +126,40 @@ object ToolOrderStore {
 @Composable
 fun LayoutEditorScreen(nav: NavHostController) {
     val context = LocalContext.current
-    var revision by remember { mutableIntStateOf(0) }
-    val order = remember(revision) { ToolOrderStore.load(context) }
-    val quick = remember(revision) { QuickActionStore.load(context) }
+    val order = remember {
+        mutableStateListOf<String>().apply { addAll(ToolOrderStore.load(context)) }
+    }
+    val quickItems = remember {
+        mutableStateListOf<QuickDragItem>().apply {
+            QuickActionStore.load(context).forEachIndexed { index, action ->
+                add(QuickDragItem(index, action))
+            }
+        }
+    }
+
+    fun moveQuick(token: Int, delta: Int): Boolean {
+        val from = quickItems.indexOfFirst { it.token == token }
+        if (from < 0) return false
+        val to = from + delta
+        if (to !in quickItems.indices) return false
+
+        QuickActionStore.swap(context, from + 1, to + 1)
+        val item = quickItems.removeAt(from)
+        quickItems.add(to, item)
+        return true
+    }
+
+    fun moveTool(route: String, delta: Int): Boolean {
+        val from = order.indexOf(route)
+        if (from < 0) return false
+        val to = from + delta
+        if (to !in order.indices) return false
+
+        val item = order.removeAt(from)
+        order.add(to, item)
+        ToolOrderStore.saveOrder(context, order)
+        return true
+    }
 
     Screen(nav, "Reorder Widgets") { padding ->
         LazyColumn(
@@ -129,45 +169,26 @@ fun LayoutEditorScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Move tools into the order you want. Your layout is saved automatically on this device.",
+                    "Press and hold a card, then drag it up or down and drop it where you want. Changes save automatically.",
                     color = LocalParchment
                 )
             }
+
             item {
                 Text("QUICK WIDGETS", color = LocalGold, fontWeight = FontWeight.Bold)
             }
-            items(quick.size) { index ->
-                val action = quick[index]
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = LocalStone),
-                    border = BorderStroke(1.dp, LocalGoldDark)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text("Slot " + (index + 1), color = LocalGold, fontSize = 11.sp)
-                            Text(action.label, color = LocalText, fontWeight = FontWeight.Bold)
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    quickItems.forEach { item ->
+                        key(item.token) {
+                            val index = quickItems.indexOfFirst { it.token == item.token }
+                            DraggableOrderCard(
+                                title = item.action.label,
+                                subtitle = "Slot " + (index + 1),
+                                onMove = { delta -> moveQuick(item.token, delta) }
+                            )
                         }
-                        OutlinedButton(
-                            onClick = {
-                                if (index > 0) {
-                                    QuickActionStore.swap(context, index + 1, index)
-                                    revision++
-                                }
-                            },
-                            enabled = index > 0
-                        ) { Text("↑") }
-                        OutlinedButton(
-                            onClick = {
-                                if (index < quick.lastIndex) {
-                                    QuickActionStore.swap(context, index + 1, index + 2)
-                                    revision++
-                                }
-                            },
-                            enabled = index < quick.lastIndex
-                        ) { Text("↓") }
                     }
                 }
             }
@@ -175,36 +196,18 @@ fun LayoutEditorScreen(nav: NavHostController) {
             item {
                 Text("MAIN TOOLS", color = LocalGold, fontWeight = FontWeight.Bold)
             }
-            items(order, key = { it }) { route ->
-                val index = order.indexOf(route)
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = LocalStone),
-                    border = BorderStroke(1.dp, LocalGoldDark)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            ToolOrderStore.title(route),
-                            color = LocalText,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                ToolOrderStore.move(context, route, -1)
-                                revision++
-                            },
-                            enabled = index > 0
-                        ) { Text("↑") }
-                        OutlinedButton(
-                            onClick = {
-                                ToolOrderStore.move(context, route, 1)
-                                revision++
-                            },
-                            enabled = index < order.lastIndex
-                        ) { Text("↓") }
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    order.forEach { route ->
+                        key(route) {
+                            val index = order.indexOf(route)
+                            DraggableOrderCard(
+                                title = ToolOrderStore.title(route),
+                                subtitle = null,
+                                onMove = { delta -> moveTool(route, delta) }
+                            )
+                        }
                     }
                 }
             }
@@ -212,8 +215,9 @@ fun LayoutEditorScreen(nav: NavHostController) {
             item {
                 Button(
                     onClick = {
+                        order.clear()
+                        order.addAll(ToolOrderStore.defaults)
                         ToolOrderStore.reset(context)
-                        revision++
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
@@ -223,6 +227,104 @@ fun LayoutEditorScreen(nav: NavHostController) {
                 ) {
                     Text("Reset default layout")
                 }
+            }
+        }
+    }
+}
+
+private data class QuickDragItem(
+    val token: Int,
+    val action: QuickAction
+)
+
+@Composable
+private fun DraggableOrderCard(
+    title: String,
+    subtitle: String?,
+    onMove: (Int) -> Boolean
+) {
+    val density = LocalDensity.current
+    val rowStepPx = with(density) { 72.dp.toPx() }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .graphicsLayer {
+                translationY = dragOffset
+                scaleX = if (dragging) 1.015f else 1f
+                scaleY = if (dragging) 1.015f else 1f
+                alpha = if (dragging) 0.92f else 1f
+            }
+            .pointerInput(title) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        dragging = true
+                        dragOffset = 0f
+                    },
+                    onDragCancel = {
+                        dragging = false
+                        dragOffset = 0f
+                    },
+                    onDragEnd = {
+                        dragging = false
+                        dragOffset = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        dragOffset += dragAmount.y
+
+                        while (dragOffset > rowStepPx / 2f) {
+                            if (!onMove(1)) {
+                                dragOffset = 0f
+                                break
+                            }
+                            dragOffset -= rowStepPx
+                        }
+
+                        while (dragOffset < -rowStepPx / 2f) {
+                            if (!onMove(-1)) {
+                                dragOffset = 0f
+                                break
+                            }
+                            dragOffset += rowStepPx
+                        }
+                    }
+                )
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = if (dragging) Color(0xff403931) else LocalStone
+        ),
+        border = BorderStroke(
+            if (dragging) 2.dp else 1.dp,
+            if (dragging) LocalGold else LocalGoldDark
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (subtitle != null) {
+                    Text(subtitle, color = LocalGold, fontSize = 11.sp)
+                }
+                Text(title, color = LocalText, fontWeight = FontWeight.Bold)
+            }
+            Column(
+                modifier = Modifier.height(64.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    "☰",
+                    color = LocalGold,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
