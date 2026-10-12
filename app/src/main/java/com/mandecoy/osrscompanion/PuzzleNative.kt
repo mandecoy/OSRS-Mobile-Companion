@@ -62,6 +62,12 @@ object PuzzleEngine {
     fun hasLearnedArtwork(context: Context, name: String): Boolean =
         learnedFeatures(context, name) != null
 
+    /** Remove a mislearned template without deleting any current board edits. */
+    fun forgetLearnedArtwork(context: Context, name: String) {
+        context.getSharedPreferences(LEARNING_PREFS, Context.MODE_PRIVATE)
+            .edit().remove("artwork_$name").apply()
+    }
+
     /** Called ONLY after the user verifies the corrected artwork visually. */
     fun rememberVerifiedTiles(context: Context, solved: PuzzleAnalysis): Boolean {
         if (!PuzzleTileMapping.isPermutation(solved.board) ||
