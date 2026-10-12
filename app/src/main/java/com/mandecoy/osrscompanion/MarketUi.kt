@@ -197,15 +197,13 @@ fun GeToolsScreen(nav: NavHostController) {
                 val snapshot = state.snapshot!!
                 val minVolume = minVolumeInput.toLongOrNull() ?: 0L
                 val query = search.trim()
-                val rows = remember(snapshot, mode, minVolume, query) {
-                    buildMarketRows(snapshot, mode, minVolume)
-                        .filter {
-                            query.isBlank() ||
-                                it.item.name.contains(query, ignoreCase = true) ||
-                                it.item.id.toString() == query
-                        }
-                        .take(100)
-                }
+                val rows = buildMarketRows(snapshot, mode, minVolume)
+                    .filter {
+                        query.isBlank() ||
+                            it.item.name.contains(query, ignoreCase = true) ||
+                            it.item.id.toString() == query
+                    }
+                    .take(100)
                 item {
                     Text(
                         mode.uppercase() + " • " + rows.size + " shown",
@@ -374,29 +372,27 @@ fun HighAlchScreen(nav: NavHostController) {
                     val minVol = if (saferOnly) max(100L, minVolumeInput.toLongOrNull() ?: 0L)
                         else minVolumeInput.toLongOrNull() ?: 0L
                     val q = search.trim()
-                    val rows = remember(snapshot, naturePrice, minVol, q) {
-                        snapshot.items.mapNotNull { item ->
-                            val alch = item.highAlch ?: return@mapNotNull null
-                            val buy = snapshot.latest[item.id]?.high ?: return@mapNotNull null
-                            val volume = snapshot.hourly[item.id]?.volume ?: 0L
-                            if (volume < minVol) return@mapNotNull null
-                            val profit = alch.toLong() - buy.toLong() - naturePrice.toLong()
-                            if (profit <= 0L) return@mapNotNull null
-                            MarketRow(
-                                item,
-                                primary = "+" + gp(profit) + " gp/alch",
-                                secondary = "Buy " + gp(buy.toLong()) +
-                                    " • Alch " + gp(alch.toLong()) +
-                                    " • Nature " + gp(naturePrice.toLong()) +
-                                    " • Limit " + (item.limit?.toString() ?: "?") +
-                                    " • 1h vol " + volume,
-                                value = profit,
-                                positive = true
-                            )
-                        }.filter {
-                            q.isBlank() || it.item.name.contains(q, ignoreCase = true)
-                        }.sortedByDescending { it.value }.take(100)
-                    }
+                    val rows = snapshot.items.mapNotNull { item ->
+                        val alch = item.highAlch ?: return@mapNotNull null
+                        val buy = snapshot.latest[item.id]?.high ?: return@mapNotNull null
+                        val volume = snapshot.hourly[item.id]?.volume ?: 0L
+                        if (volume < minVol) return@mapNotNull null
+                        val profit = alch.toLong() - buy.toLong() - naturePrice.toLong()
+                        if (profit <= 0L) return@mapNotNull null
+                        MarketRow(
+                            item,
+                            primary = "+" + gp(profit) + " gp/alch",
+                            secondary = "Buy " + gp(buy.toLong()) +
+                                " • Alch " + gp(alch.toLong()) +
+                                " • Nature " + gp(naturePrice.toLong()) +
+                                " • Limit " + (item.limit?.toString() ?: "?") +
+                                " • 1h vol " + volume,
+                            value = profit,
+                            positive = true
+                        )
+                    }.filter {
+                        q.isBlank() || it.item.name.contains(q, ignoreCase = true)
+                    }.sortedByDescending { it.value }.take(100)
 
                     item {
                         Text(
