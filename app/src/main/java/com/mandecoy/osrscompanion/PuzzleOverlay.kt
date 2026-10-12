@@ -146,7 +146,7 @@ fun AnnotatedPuzzlePreview(
 }
 
 
-private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
+internal fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
     val side = 5
     val gapTile = 24
     val state = solved.board.copyOf()
