@@ -243,9 +243,12 @@ fun PuzzleRecognitionComparison(solved: PuzzleAnalysis) {
 }
 
 /**
- * Editable recognition: tap any cell of the REAL screenshot, then pick the
- * corresponding tile (1-24) in the SOLVED artwork. Changing an assignment
- * swaps the two existing tile labels so every tile remains unique.
+ * Manual corrections NEVER depend on tapping the (possibly mismatched) solved
+ * artwork. All 25 positions including the empty square are selectable.
+ *
+ * One option: tap two positions of the ACTUAL screenshot to swap the mistaken
+ * labels. Another: tap a screenshot position then choose its SOLVED position
+ * from explicit 1..24 / EMPTY buttons. Both operations preserve the permutation.
  */
 @Composable
 fun PuzzleTileAssignmentPicker(
@@ -254,29 +257,88 @@ fun PuzzleTileAssignmentPicker(
     board: IntArray,
     selectedPosition: Int,
     onSelectPosition: (Int) -> Unit,
-    onChooseTile: (Int) -> Unit
+    onChooseTile: (Int) -> Unit,
+    onSwapPosition: (Int) -> Unit
 ) {
     Text(
-        "1. Tap any tile in your real screenshot. The gold border marks your selection.",
-        color = OverlayParchment, fontSize = 12.sp
+        "FIX TILES: Tap a tile on the screenshot, then tap ANOTHER screenshot tile to swap their labels. Every tile, including EMPTY, can be selected.",
+        color = OverlayParchment,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold
     )
     LabeledPuzzleCells(
         bitmap = screenshot,
         labels = board,
         selectedPosition = selectedPosition,
-        clickable = true,
-        onPress = onSelectPosition
+        onPress = { position ->
+            if (selectedPosition == -1 || selectedPosition == position) {
+                onSelectPosition(if (selectedPosition == position) -1 else position)
+            } else {
+                onSwapPosition(position)
+            }
+        }
     )
     Text(
-        "2. Tap WHERE that picture belongs in the solved image below. The app swaps its label automatically. You can repeat for multiple tiles.",
-        color = OverlayParchment, fontSize = 12.sp
+        if (selectedPosition in 0..24)
+            "Selected: row ${selectedPosition / 5 + 1}, column ${selectedPosition % 5 + 1} (recognized as ${if (board[selectedPosition] == 24) "EMPTY" else "tile " + (board[selectedPosition] + 1)}). Tap a second screenshot square to swap, OR choose its correct solved-position number below."
+        else
+            "No tile selected. Tap any of the 25 squares above to begin.",
+        color = OverlayGold, fontSize = 13.sp
     )
-    LabeledPuzzleCells(
-        bitmap = reference,
-        labels = IntArray(25) { it },
-        selectedPosition = -1,
-        clickable = selectedPosition >= 0,
-        onPress = onChooseTile
+    Text(
+        "SOLVED REFERENCE (for comparison; the image itself is not a button):",
+        color = OverlayParchment,
+        fontWeight = FontWeight.Bold,
+        fontSize = 12.sp
+    )
+    Image(
+        bitmap = reference.asImageBitmap(),
+        contentDescription = "Complete puzzle artwork, reference for assigning tile numbers",
+        contentScale = ContentScale.FillBounds,
+        modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+            .border(2.dp, OverlayGold)
+    )
+    Text(
+        "ASSIGN SELECTED TILE TO SOLVED POSITION: Choose 1–24, or EMPTY, using these buttons. Choosing a number swaps its assignment with the tile currently assigned that number.",
+        color = OverlayParchment,
+        fontSize = 12.sp
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        for (row in 0..4) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                for (col in 0..4) {
+                    val target = row * 5 + col
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { onChooseTile(target) },
+                        enabled = selectedPosition in 0..24,
+                        modifier = Modifier.weight(1f),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 0.dp, vertical = 0.dp
+                        ),
+                        border = BorderStroke(
+                            if (selectedPosition in 0..24 && board[selectedPosition] == target)
+                                3.dp else 1.dp,
+                            OverlayGold
+                        )
+                    ) {
+                        Text(
+                            if (target == 24) "E" else (target + 1).toString(),
+                            fontSize = 14.sp,
+                            color = OverlayParchment,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+    }
+    Text(
+        "E = EMPTY. All 25 assignments are available. Tap screenshot squares or the numbered buttons; you can make as many corrections as needed before recalculating.",
+        color = OverlayParchment,
+        fontSize = 11.sp
     )
 }
 
@@ -285,13 +347,14 @@ private fun LabeledPuzzleCells(
     bitmap: Bitmap,
     labels: IntArray,
     selectedPosition: Int,
-    clickable: Boolean,
     onPress: (Int) -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).border(2.dp, OverlayGold)) {
+    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+        .border(2.dp, OverlayGold)
+    ) {
         Image(
             bitmap = bitmap.asImageBitmap(),
-            contentDescription = "Puzzle tiles and their solved positions",
+            contentDescription = "Actual OSRS screenshot; tap any tile to select and swap its recognized number",
             contentScale = ContentScale.FillBounds,
             modifier = Modifier.fillMaxSize()
         )
@@ -308,23 +371,22 @@ private fun LabeledPuzzleCells(
                                     if (selectedPosition == pos) OverlayGold
                                     else Color.White.copy(alpha = 0.45f)
                                 )
-                                .then(if (clickable) Modifier.clickable { onPress(pos) }
-                                      else Modifier),
-                            contentAlignment = Alignment.Center
+                                .clickable { onPress(pos) },
+                            contentAlignment = Alignment.TopStart
                         ) {
                             Text(
-                                if (tile == 24) "EMPTY" else (tile + 1).toString(),
+                                if (tile == 24) "E" else (tile + 1).toString(),
                                 color = Color.White,
-                                fontSize = if (tile == 24) 9.sp else 16.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier
                                     .background(
                                         if (selectedPosition == pos)
-                                            OverlayGold.copy(alpha = 0.95f)
-                                        else Color.Black.copy(alpha = 0.70f),
-                                        RoundedCornerShape(6.dp)
+                                            Color(0xff855400)
+                                        else Color.Black.copy(alpha = 0.82f),
+                                        RoundedCornerShape(4.dp)
                                     )
-                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
                             )
                         }
                     }
