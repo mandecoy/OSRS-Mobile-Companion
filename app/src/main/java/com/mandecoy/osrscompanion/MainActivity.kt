@@ -137,8 +137,8 @@ private val WebTools = mapOf(
 data class Tool(val title: String, val subtitle: String, val route: String, val icon: String)
 
 private val Tools = listOf(
-    Tool("Timers", "AFK + farming + reminders", "timers", osrsWikiImage("Sleeping_cap.png")),
-    Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Watch.png")),
+    Tool("Timers", "AFK + farming + reminders", "timers", osrsWikiImage("Watch.png")),
+    Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Magical_orb.png")),
     Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
     Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
@@ -168,8 +168,8 @@ data class QuickAction(
 )
 
 private val QuickChoices = listOf(
-    QuickAction("timers", "Timers", osrsWikiImage("Sleeping_cap.png"), route = "timers"),
-    QuickAction("floating", "Floating Companion", osrsWikiImage("Watch.png"), route = "floating"),
+    QuickAction("timers", "Timers", osrsWikiImage("Watch.png"), route = "timers"),
+    QuickAction("floating", "Floating Companion", osrsWikiImage("Magical_orb.png"), route = "floating"),
     QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_Clerk.png"), route = "ge_tools"),
     QuickAction("high_alch", "High Alch", osrsWikiImage("High_Level_Alchemy.png"), route = "high_alch"),
     QuickAction("portfolio", "Portfolio", osrsWikiImage("Platinum_token.png"), route = "portfolio"),
@@ -495,7 +495,7 @@ private fun TimersScreen(nav: NavHostController) {
             QuickAction(
                 id = "custom_" + System.currentTimeMillis(),
                 label = safeLabel,
-                icon = osrsWikiImage("Sleeping_cap.png"),
+                icon = osrsWikiImage("Watch.png"),
                 seconds = total
             )
         )
