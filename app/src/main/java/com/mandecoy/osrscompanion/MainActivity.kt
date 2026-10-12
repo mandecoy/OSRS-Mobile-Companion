@@ -50,6 +50,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -320,7 +321,11 @@ private fun HomeScreen(nav: NavHostController) {
     val context = LocalContext.current
     var revision by remember { mutableIntStateOf(0) }
     val quick = remember(revision) { QuickActionStore.load(context) }
+    val visibleQuick = quick.withIndex()
+        .filter { (index, _) -> ToolOrderStore.isQuickVisible(context, index + 1) }
+        .map { it.value }
     val orderedTools = ToolOrderStore.ordered(context, Tools.map { it.route })
+        .filter { ToolOrderStore.isToolVisible(context, it) }
         .mapNotNull { route -> Tools.firstOrNull { it.route == route } }
 
     LazyVerticalGrid(
@@ -363,13 +368,19 @@ private fun HomeScreen(nav: NavHostController) {
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                quick.forEach { action ->
+                visibleQuick.forEach { action ->
                     QuickMiniCard(
                         action = action,
                         context = context,
                         nav = nav,
                         modifier = Modifier.weight(1f)
                     ) { revision++ }
+                }
+                if (visibleQuick.isEmpty()) {
+                    Text(
+                        "All Quick Widgets hidden. Restore them in Reorder.",
+                        color = Parchment, fontSize = 12.sp
+                    )
                 }
             }
         }
@@ -1511,6 +1522,9 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         "Achievement Diaries", "OSRS Wiki", "DPS Calculator"
     )
     var playerName by remember { mutableStateOf(SavedPlayerName.get(context)) }
+    var usernameToolbarVisible by remember {
+        mutableStateOf(SavedPlayerName.isToolbarVisible(context))
+    }
     var page by remember { mutableStateOf<WebView?>(null) }
     var nameReaderStarted by remember { mutableStateOf(false) }
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
@@ -1523,43 +1537,69 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (supportsSavedName) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924))
+                        .padding(start = 12.dp, end = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = playerName,
-                        onValueChange = {
-                            playerName = it.take(12)
-                            SavedPlayerName.save(context, playerName)
-                        },
-                        label = { Text("Saved OSRS username") },
-                        placeholder = { Text("Player name") },
-                        singleLine = true,
+                    Text(
+                        if (usernameToolbarVisible) "SAVED OSRS USERNAME"
+                        else "OSRS username controls hidden",
+                        color = RuneGold,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
+                    IconButton(
+                        onClick = {
+                            usernameToolbarVisible = !usernameToolbarVisible
+                            SavedPlayerName.setToolbarVisible(context, usernameToolbarVisible)
+                        }
+                    ) {
+                        EyeVisibilityIcon(usernameToolbarVisible, RuneGold)
+                    }
                     TextButton(
                         onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("OSRS username", playerName))
-                        },
-                        enabled = playerName.isNotBlank()
+                            usernameToolbarVisible = !usernameToolbarVisible
+                            SavedPlayerName.setToolbarVisible(context, usernameToolbarVisible)
+                        }
                     ) {
-                        Text("Copy", color = RuneGold)
-                    }
-                    TextButton(
-                        onClick = { page?.let { SavedPlayerName.fillRelevantFields(it, it.url, playerName) } },
-                        enabled = playerName.isNotBlank()
-                    ) {
-                        Text("Fill", color = RuneGold)
+                        Text(if (usernameToolbarVisible) "Hide" else "Show", color = RuneGold)
                     }
                 }
-                Text(
-                    "Saved locally and shared across Wise Old Man, calculators, quests, diaries, Wiki, and DPS. Fill works when the website provides a recognizable player field.",
-                    color = Parchment,
-                    fontSize = 10.sp,
-                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(horizontal = 10.dp, vertical = 2.dp)
-                )
+                if (usernameToolbarVisible) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .background(Color(0xff2e2924))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = playerName,
+                            onValueChange = {
+                                playerName = it.take(12)
+                                SavedPlayerName.save(context, playerName)
+                            },
+                            label = { Text("Username") },
+                            placeholder = { Text("Player name") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("OSRS username", playerName))
+                            },
+                            enabled = playerName.isNotBlank()
+                        ) { Text("Copy", color = RuneGold) }
+                        TextButton(
+                            onClick = { page?.let {
+                                SavedPlayerName.fillRelevantFields(it, it.url, playerName)
+                            } },
+                            enabled = playerName.isNotBlank()
+                        ) { Text("Fill", color = RuneGold) }
+                    }
+                }
             } else {
                 Text(
                     tool.subtitle,
