@@ -2,6 +2,13 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.4
+
+### Fixed
+
+- Old School News now opens fitted to the phone width instead of loading heavily zoomed/cropped
+- Pinch-to-zoom remains available for the legacy Jagex news archive
+
 ## 0.5.3
 
 ### Changed
