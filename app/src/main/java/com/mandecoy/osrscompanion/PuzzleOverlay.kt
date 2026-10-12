@@ -266,18 +266,54 @@ fun PuzzleTileAssignmentPicker(
         fontSize = 13.sp,
         fontWeight = FontWeight.Bold
     )
+    val selectSquare: (Int) -> Unit = { position ->
+        if (selectedPosition == -1 || selectedPosition == position) {
+            onSelectPosition(if (selectedPosition == position) -1 else position)
+        } else {
+            onSwapPosition(position)
+        }
+    }
     LabeledPuzzleCells(
         bitmap = screenshot,
         labels = board,
         selectedPosition = selectedPosition,
-        onPress = { position ->
-            if (selectedPosition == -1 || selectedPosition == position) {
-                onSelectPosition(if (selectedPosition == position) -1 else position)
-            } else {
-                onSwapPosition(position)
+        onPress = selectSquare
+    )
+    Text(
+        "CAN'T TAP THE PICTURE? Use these 25 square-selection buttons instead:",
+        color = OverlayParchment, fontSize = 12.sp, fontWeight = FontWeight.Bold
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (r in 0..4) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                for (c in 0..4) {
+                    val index = r * 5 + c
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { selectSquare(index) },
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(
+                            if (selectedPosition == index) 3.dp else 1.dp,
+                            OverlayGold
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 0.dp, vertical = 0.dp
+                        )
+                    ) {
+                        Text(
+                            "R${r + 1}C${c + 1}",
+                            fontSize = 10.sp,
+                            color = OverlayParchment,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
-    )
+    }
     Text(
         if (selectedPosition in 0..24)
             "Selected: row ${selectedPosition / 5 + 1}, column ${selectedPosition % 5 + 1} (recognized as ${if (board[selectedPosition] == 24) "EMPTY" else "tile " + (board[selectedPosition] + 1)}). Tap a second screenshot square to swap, OR choose its correct solved-position number below."
