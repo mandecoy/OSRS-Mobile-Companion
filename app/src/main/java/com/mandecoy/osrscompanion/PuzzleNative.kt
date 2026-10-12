@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
+import android.util.Base64
+import java.security.MessageDigest
 import java.util.PriorityQueue
 import java.net.HttpURLConnection
 import java.net.URL
@@ -34,6 +36,105 @@ object PuzzleEngine {
     private const val GAP = 24
     private const val SAMPLE_SIDE = 7
     private const val SEARCH_LIMIT = 350_000
+    private const val LEARNING_PREFS = "puzzle_visual_learning_v1"
+    private const val DRAFT_PREFS = "puzzle_recognition_drafts_v1"
+    private const val FEATURE_COUNT = SAMPLE_SIDE * SAMPLE_SIDE * 3
+
+    /**
+     * Persist only picture appearance by SOLVED artwork identity, not a
+     * shuffled board. A verified tile appearance can be reused on new puzzles.
+     * Blank tile 24 is never learned as picture artwork.
+     */
+    private fun learnedFeatures(context: Context, name: String): Array<FloatArray>? {
+        val raw = context.getSharedPreferences(LEARNING_PREFS, Context.MODE_PRIVATE)
+            .getString("artwork_$name", null) ?: return null
+        return try {
+            val bytes = Base64.decode(raw, Base64.NO_WRAP)
+            if (bytes.size != 24 * FEATURE_COUNT) return null
+            Array(24) { tile ->
+                FloatArray(FEATURE_COUNT) { index ->
+                    (bytes[tile * FEATURE_COUNT + index].toInt() and 255).toFloat()
+                }
+            }
+        } catch (_: Exception) { null }
+    }
+
+    fun hasLearnedArtwork(context: Context, name: String): Boolean =
+        learnedFeatures(context, name) != null
+
+    /** Called ONLY after the user verifies the corrected artwork visually. */
+    fun rememberVerifiedTiles(context: Context, solved: PuzzleAnalysis): Boolean {
+        if (!PuzzleTileMapping.isPermutation(solved.board) ||
+            !PuzzleTileMapping.isSolvable(solved.board)) return false
+        return try {
+            val observed = tileFeatures(solved.preview)
+            val previous = learnedFeatures(context, solved.puzzleName)
+            val bytes = ByteArray(24 * FEATURE_COUNT)
+            for (position in 0 until CELL_COUNT) {
+                val tile = solved.board[position]
+                if (tile == GAP) continue
+                for (i in 0 until FEATURE_COUNT) {
+                    // Blend with a previous confirmed photo to handle camera
+                    // rescaling and compression rather than overwriting it.
+                    val current = observed[position][i]
+                    val mean = if (previous == null) current
+                               else (current * 0.65f + previous[tile][i] * 0.35f)
+                    bytes[tile * FEATURE_COUNT + i] =
+                        mean.toInt().coerceIn(0, 255).toByte()
+                }
+            }
+            context.getSharedPreferences(LEARNING_PREFS, Context.MODE_PRIVATE)
+                .edit().putString("artwork_${solved.puzzleName}",
+                    Base64.encodeToString(bytes, Base64.NO_WRAP)).apply()
+            true
+        } catch (_: Exception) { false }
+    }
+
+    /** Signature of the CROPPED screenshot; never use a prior shuffled board
+     * for a screenshot with different pixels or another official artwork. */
+    private fun croppedFingerprint(bitmap: Bitmap): String {
+        val scaled = Bitmap.createScaledBitmap(bitmap, 32, 32, true)
+        val pixels = IntArray(32 * 32)
+        scaled.getPixels(pixels, 0, 32, 0, 0, 32, 32)
+        val md = MessageDigest.getInstance("SHA-256")
+        for (px in pixels) {
+            md.update((px ushr 16).toByte())
+            md.update((px ushr 8).toByte())
+            md.update(px.toByte())
+        }
+        if (scaled !== bitmap) scaled.recycle()
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    fun saveWorkingBoard(context: Context, original: PuzzleAnalysis, board: IntArray) {
+        if (!PuzzleTileMapping.isPermutation(board)) return
+        try {
+            val key = "${original.puzzleName}:${croppedFingerprint(original.preview)}"
+            context.getSharedPreferences(DRAFT_PREFS, Context.MODE_PRIVATE).edit()
+                .putString("key", key)
+                .putString("board", board.joinToString(","))
+                .apply()
+        } catch (_: Exception) {}
+    }
+
+    fun savedBoardForScreenshot(context: Context, original: PuzzleAnalysis): IntArray? {
+        return try {
+            val prefs = context.getSharedPreferences(DRAFT_PREFS, Context.MODE_PRIVATE)
+            val key = "${original.puzzleName}:${croppedFingerprint(original.preview)}"
+            if (prefs.getString("key", "") != key) return null
+            val board = prefs.getString("board", null)?.split(",")
+                ?.map { it.toInt() }?.toIntArray() ?: return null
+            board.takeIf { PuzzleTileMapping.isPermutation(it) }
+        } catch (_: Exception) { null }
+    }
+
+    /** Same screenshot only; use corrected tiles if already valid. */
+    fun restoreBoardForScreenshot(context: Context, original: PuzzleAnalysis): PuzzleAnalysis {
+        val stored = savedBoardForScreenshot(context, original) ?: return original
+        if (!PuzzleTileMapping.isSolvable(stored)) return original
+        return solveCorrectedBoard(original, stored) ?: original
+    }
+
 
     private val referenceFiles = listOf(
         "Castle" to "Castle_puzzle_solved.png",
@@ -71,9 +172,16 @@ object PuzzleEngine {
         var winnerMean = Float.MAX_VALUE
 
         for (ref in refs) {
+            val learned = learnedFeatures(context, ref.name)
             val costs = Array(CELL_COUNT) { pos ->
                 DoubleArray(CELL_COUNT) { tile ->
-                    featureDistance(observed[pos], ref.tileFeatures[tile]).toDouble()
+                    val original = featureDistance(observed[pos], ref.tileFeatures[tile])
+                    if (learned != null && tile != GAP) {
+                        val confirmed = featureDistance(observed[pos], learned[tile])
+                        // Trust a previously verified picture but retain an
+                        // independent official-reference check.
+                        (original * 0.30f + confirmed * 0.70f).toDouble()
+                    } else original.toDouble()
                 }
             }
             val assignment = minimumAssignmentWithForcedGap(costs, detectEmptyPosition(cropped))
