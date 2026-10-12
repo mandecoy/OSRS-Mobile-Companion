@@ -55,6 +55,8 @@ jobs:
           VERSION_NAME=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
+      # Includes PuzzleTileMappingTest: validates correction of every tile,
+      # including the real EMPTY square, before packaging this release.
       - name: Test puzzle solver and build signed release APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/osrs-companion-release.jks
