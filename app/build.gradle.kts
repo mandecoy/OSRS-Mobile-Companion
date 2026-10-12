@@ -12,8 +12,8 @@ android {
         applicationId = "com.mandecoy.osrscompanion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.2.3"
+        versionCode = 7
+        versionName = "0.3.0"
     }
 
     compileOptions {
@@ -41,6 +41,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.browser:browser:1.8.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
