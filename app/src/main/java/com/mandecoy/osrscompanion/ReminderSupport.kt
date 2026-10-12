@@ -18,6 +18,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -33,14 +34,17 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 object GameReminderStore {
     private const val PREFS = "game_reminders_v1"
     private const val TEARS_ENABLED = "tears_enabled"
     private const val TEARS_LAST_DONE_UTC_DAY = "tears_last_done_utc_day"
+    private const val TEARS_LAST_PRESSED_AT = "tears_done_pressed_at"
     private const val ZAFF_ENABLED = "zaff_enabled"
     private const val MISC_ENABLED = "misc_enabled"
     private const val MISC_LAST_DONE = "misc_last_done"
+    private const val MISC_LAST_PRESSED_AT = "misc_done_pressed_at"
     private const val MISC_INTERVAL_DAYS = "misc_interval_days"
 
     fun tearsEnabled(context: Context): Boolean =
@@ -84,18 +88,33 @@ object GameReminderStore {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putBoolean(MISC_ENABLED, enabled).apply()
         if (enabled) {
-            if (miscellaniaLastDone(context) == null) markMiscellaniaDoneNow(context)
-            else GameReminderScheduler.scheduleMiscellania(context)
+            // The first time reminders are enabled is NOT a completed
+            // Miscellania visit. Initialize the schedule without recording
+            // a false "Done now" button press.
+            if (miscellaniaLastDone(context) == null) {
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                    .edit().putLong(MISC_LAST_DONE, System.currentTimeMillis()).apply()
+            }
+            GameReminderScheduler.scheduleMiscellania(context)
         } else {
             GameReminderScheduler.cancelMiscellania(context)
         }
     }
 
     fun markMiscellaniaDoneNow(context: Context) {
+        val pressedAt = System.currentTimeMillis()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putLong(MISC_LAST_DONE, System.currentTimeMillis()).apply()
+            .edit()
+            .putLong(MISC_LAST_DONE, pressedAt)
+            .putLong(MISC_LAST_PRESSED_AT, pressedAt)
+            .apply()
         if (miscellaniaEnabled(context)) GameReminderScheduler.scheduleMiscellania(context)
     }
+
+    /** Exact button press, not the automatic reminder scheduling baseline. */
+    fun miscellaniaDonePressedAt(context: Context): Long? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(MISC_LAST_PRESSED_AT, 0L).takeIf { it > 0L }
 
     fun miscellaniaLastDone(context: Context): Long? {
         val value = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -104,14 +123,23 @@ object GameReminderStore {
     }
 
     fun markTearsDoneToday(context: Context) {
+        val pressedAt = System.currentTimeMillis()
         val utcDayStart = ZonedDateTime.now(ZoneOffset.UTC)
             .truncatedTo(ChronoUnit.DAYS)
             .toInstant()
             .toEpochMilli()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putLong(TEARS_LAST_DONE_UTC_DAY, utcDayStart).apply()
+            .edit()
+            .putLong(TEARS_LAST_DONE_UTC_DAY, utcDayStart)
+            .putLong(TEARS_LAST_PRESSED_AT, pressedAt)
+            .apply()
         if (tearsEnabled(context)) GameReminderScheduler.scheduleTears(context)
     }
+
+    /** Keep the exact click timestamp separate from UTC day scheduling. */
+    fun tearsDonePressedAt(context: Context): Long? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(TEARS_LAST_PRESSED_AT, 0L).takeIf { it > 0L }
 
     fun tearsLastDoneUtcDay(context: Context): Long? {
         val value = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -234,12 +262,37 @@ class GameReminderReceiver : BroadcastReceiver() {
 }
 
 
+/** Elapsed since the button was actually pressed, not the next alarm. */
+internal fun lastDoneText(pressedAt: Long?, now: Long): String {
+    if (pressedAt == null) return "Last done: not recorded yet"
+    val minutes = ((now - pressedAt).coerceAtLeast(0L) / 60_000L)
+    if (minutes == 0L) return "Last done: just now"
+    val days = minutes / (24L * 60L)
+    val hours = (minutes % (24L * 60L)) / 60L
+    val mins = minutes % 60L
+    val elapsed = when {
+        days > 0L -> "${days}d ${hours}h"
+        hours > 0L -> "${hours}h ${mins}m"
+        else -> "${mins}m"
+    }
+    return "Last done: $elapsed ago"
+}
+
 @Composable
 fun GameRemindersCard(context: Context) {
     var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
     var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
     var miscellaniaEnabled by remember { mutableStateOf(GameReminderStore.miscellaniaEnabled(context)) }
     var miscellaniaDays by remember { mutableIntStateOf(GameReminderStore.miscellaniaIntervalDays(context)) }
+    var tearsLastPressed by remember { mutableStateOf(GameReminderStore.tearsDonePressedAt(context)) }
+    var miscLastPressed by remember { mutableStateOf(GameReminderStore.miscellaniaDonePressedAt(context)) }
+    var displayTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000L)
+            displayTime = System.currentTimeMillis()
+        }
+    }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
@@ -267,6 +320,12 @@ fun GameRemindersCard(context: Context) {
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
+                    Text(
+                        lastDoneText(tearsLastPressed, displayTime),
+                        color = Color(0xffd7a93f),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
                 Switch(
                     checked = tearsEnabled,
@@ -279,7 +338,11 @@ fun GameRemindersCard(context: Context) {
 
             if (tearsEnabled) {
                 OutlinedButton(
-                    onClick = { GameReminderStore.markTearsDoneToday(context) },
+                    onClick = {
+                        GameReminderStore.markTearsDoneToday(context)
+                        tearsLastPressed = GameReminderStore.tearsDonePressedAt(context)
+                        displayTime = System.currentTimeMillis()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Tears of Guthix — Done today")
@@ -318,6 +381,12 @@ fun GameRemindersCard(context: Context) {
                             if (miscellaniaDays == 1) " day since your last check-in." else " days since your last check-in.",
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
+                    )
+                    Text(
+                        lastDoneText(miscLastPressed, displayTime),
+                        color = Color(0xffd7a93f),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
                     )
                 }
                 Switch(
@@ -358,7 +427,11 @@ fun GameRemindersCard(context: Context) {
 
             if (miscellaniaEnabled) {
                 OutlinedButton(
-                    onClick = { GameReminderStore.markMiscellaniaDoneNow(context) },
+                    onClick = {
+                        GameReminderStore.markMiscellaniaDoneNow(context)
+                        miscLastPressed = GameReminderStore.miscellaniaDonePressedAt(context)
+                        displayTime = System.currentTimeMillis()
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Manage Miscellania — Done now")
