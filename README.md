@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.0**  
+**Current stable version: 0.5.1**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
