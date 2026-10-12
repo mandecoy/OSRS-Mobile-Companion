@@ -1,5 +1,8 @@
 package com.mandecoy.osrscompanion
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -17,6 +20,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +42,7 @@ fun AnnotatedPuzzlePreview(
 ) {
     val hints = PuzzleEngine.moveHints(solved.board, solved.moves, start, 5)
     val gap = PuzzleEngine.gapPositionAt(solved.board, solved.moves, start)
+    val previewAtStart = remember(solved, start) { renderPuzzleAtMove(solved, start) }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = OverlayDark),
@@ -50,7 +55,7 @@ fun AnnotatedPuzzlePreview(
                 .padding(8.dp)
         ) {
             Image(
-                bitmap = solved.preview.asImageBitmap(),
+                bitmap = previewAtStart.asImageBitmap(),
                 contentDescription = "Uploaded Puzzle Box with move overlays",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
@@ -125,4 +130,59 @@ fun AnnotatedPuzzlePreview(
             }
         }
     }
+}
+
+
+private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
+    if (moveCount <= 0) return solved.preview
+
+    val side = 5
+    val gapTile = 24
+    val state = solved.board.copyOf()
+    var gap = state.indexOf(gapTile)
+
+    val appliedMoves = moveCount.coerceAtMost(solved.moves.size)
+    for (i in 0 until appliedMoves) {
+        val tapped = solved.moves[i]
+        state[gap] = state[tapped]
+        state[tapped] = gapTile
+        gap = tapped
+    }
+
+    // The uploaded preview is the original board. Map each solved tile identity
+    // back to the position where its pixels came from in that original image.
+    val sourcePositionForTile = IntArray(25)
+    solved.board.forEachIndexed { position, tile ->
+        sourcePositionForTile[tile] = position
+    }
+
+    val source = solved.preview
+    val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+
+    for (destination in 0 until 25) {
+        val tile = state[destination]
+        val sourcePosition = sourcePositionForTile[tile]
+
+        val srcCol = sourcePosition % side
+        val srcRow = sourcePosition / side
+        val dstCol = destination % side
+        val dstRow = destination / side
+
+        val src = Rect(
+            srcCol * source.width / side,
+            srcRow * source.height / side,
+            (srcCol + 1) * source.width / side,
+            (srcRow + 1) * source.height / side
+        )
+        val dst = Rect(
+            dstCol * source.width / side,
+            dstRow * source.height / side,
+            (dstCol + 1) * source.width / side,
+            (dstRow + 1) * source.height / side
+        )
+        canvas.drawBitmap(source, src, dst, null)
+    }
+
+    return output
 }
