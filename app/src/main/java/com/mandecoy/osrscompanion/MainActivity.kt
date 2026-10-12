@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -85,6 +86,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
+import coil.compose.AsyncImage
 
 private val StoneDark = Color(0xff201c18)
 private val Stone = Color(0xff4b443c)
@@ -125,28 +127,29 @@ private val WebTools = mapOf(
     "light" to WebTool("Light Box Solver", "https://osrs-lightbox-solver.fletom.com/", "Solve master-clue light boxes."),
     "quests" to WebTool("Quests", "https://oldschool.runescape.wiki/w/Quests", "Quest list, requirements, and guides."),
     "diaries" to WebTool("Achievement Diaries", "https://oldschool.runescape.wiki/w/Achievement_Diary", "Achievement Diary requirements and rewards."),
+    "news" to WebTool("Old School News", "https://secure.runescape.com/m=news/archive?oldschool=1", "Official Old School RuneScape news archive."),
     "clues" to WebTool("Clue Helper", "https://oldschool.runescape.wiki/w/Treasure_Trails/Guide", "Clue scroll reference hub.")
 )
 
 data class Tool(val title: String, val subtitle: String, val route: String, val icon: String)
 
 private val Tools = listOf(
-    Tool("Timers", "AFK + farming runs", "timers", "⏱️"),
-    Tool("Puzzle Box", "Screenshot solver", "puzzle", "🧩"),
-    Tool("Light Box", "Master clue solver", "web/light", "💡"),
-    Tool("GE Prices", "Live market prices", "web/prices", "🪙"),
-    Tool("OSRS Wiki", "Search anything", "web/wiki", "📖"),
-    Tool("Wise Old Man", "Player lookup", "web/wise", "🧙"),
-    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", "🌠"),
-    Tool("Skill Calculators", "All skills", "web/skills", "📊"),
-    Tool("DPS Calculator", "Combat damage calculator", "web/dps", "⚔️"),
-    Tool("Quests", "Quest list + requirements", "web/quests", "📜"),
-    Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", "🏆"),
-    Tool("Clue Helper", "Treasure trail references", "web/clues", "🗺️"),
-    Tool("Quick Widgets", "Customize four shortcuts", "quick", "⚙️"),
-    Tool("About", "Source + privacy", "about", "ℹ️")
+    Tool("Timers", "AFK + farming runs", "timers", osrsWikiImage("Watch.png")),
+    Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box_zulrah.png")),
+    Tool("Light Box", "Master clue solver", "web/light", osrsWikiImage("Light_box.png")),
+    Tool("GE Prices", "Live market prices", "web/prices", osrsWikiImage("Coins_10000.png")),
+    Tool("OSRS Wiki", "Search anything", "web/wiki", osrsWikiImage("Book.png")),
+    Tool("Wise Old Man", "Player lookup", "web/wise", osrsWikiImage("Wise_Old_Man_(2022_Birthday_event).png")),
+    Tool("Shooting Stars", "OSRS Portal tracker", "web/stars", osrsWikiImage("Shooting_Star_Display.png")),
+    Tool("Skill Calculators", "All skills", "web/skills", osrsWikiImage("Skills_icon.png")),
+    Tool("DPS Calculator", "Combat damage calculator", "web/dps", osrsWikiImage("Attack_style_icon.png")),
+    Tool("Quests", "Quest list + requirements", "web/quests", osrsWikiImage("Quest_point_hood.png")),
+    Tool("Achievement Diaries", "Diary tasks + rewards", "web/diaries", osrsWikiImage("Achievement_Diaries.png")),
+    Tool("Clue Helper", "Treasure trail references", "web/clues", osrsWikiImage("Scroll_box_(hard).png")),
+    Tool("Old School News", "Official Jagex news archive", "web/news", osrsWikiImage("Newspaper.png")),
+    Tool("Quick Widgets", "Customize four shortcuts", "quick", osrsWikiImage("Settings_icon.png")),
+    Tool("About", "Source + privacy", "about", osrsWikiImage("Book.png"))
 )
-
 data class QuickAction(
     val id: String,
     val label: String,
@@ -156,19 +159,24 @@ data class QuickAction(
 )
 
 private val QuickChoices = listOf(
-    QuickAction("afk5", "AFK 5m", "💤", seconds = 300),
-    QuickAction("afk10", "AFK 10m", "💤", seconds = 600),
-    QuickAction("herb", "Herb", "🌿", seconds = 80 * 60),
-    QuickAction("bird", "Birdhouse", "🐦", seconds = 50 * 60),
-    QuickAction("puzzle", "Puzzle", "🧩", route = "puzzle"),
-    QuickAction("stars", "Stars", "🌠", route = "web/stars"),
-    QuickAction("wiki", "Wiki", "📖", route = "web/wiki"),
-    QuickAction("dps", "DPS", "⚔️", route = "web/dps"),
-    QuickAction("quests", "Quests", "📜", route = "web/quests"),
-    QuickAction("diaries", "Diaries", "🏆", route = "web/diaries"),
-    QuickAction("timers", "Timers", "⏱️", route = "timers")
+    QuickAction("afk5", "AFK 5m", osrsWikiImage("Watch.png"), seconds = 300),
+    QuickAction("afk10", "AFK 10m", osrsWikiImage("Watch.png"), seconds = 600),
+    QuickAction("herb", "Herb Run", osrsWikiImage("Ranarr_weed.png"), seconds = 80 * 60),
+    QuickAction("bird", "Birdhouse", osrsWikiImage("Bird_house.png"), seconds = 50 * 60),
+    QuickAction("puzzle", "Puzzle Box", osrsWikiImage("Puzzle_box_zulrah.png"), route = "puzzle"),
+    QuickAction("light", "Light Box", osrsWikiImage("Light_box.png"), route = "web/light"),
+    QuickAction("prices", "GE Prices", osrsWikiImage("Coins_10000.png"), route = "web/prices"),
+    QuickAction("wiki", "OSRS Wiki", osrsWikiImage("Book.png"), route = "web/wiki"),
+    QuickAction("wise", "Wise Old Man", osrsWikiImage("Wise_Old_Man_(2022_Birthday_event).png"), route = "web/wise"),
+    QuickAction("stars", "Shooting Stars", osrsWikiImage("Shooting_Star_Display.png"), route = "web/stars"),
+    QuickAction("skills", "Skill Calculators", osrsWikiImage("Skills_icon.png"), route = "web/skills"),
+    QuickAction("dps", "DPS Calculator", osrsWikiImage("Attack_style_icon.png"), route = "web/dps"),
+    QuickAction("quests", "Quests", osrsWikiImage("Quest_point_hood.png"), route = "web/quests"),
+    QuickAction("diaries", "Achievement Diaries", osrsWikiImage("Achievement_Diaries.png"), route = "web/diaries"),
+    QuickAction("clues", "Clue Helper", osrsWikiImage("Scroll_box_(hard).png"), route = "web/clues"),
+    QuickAction("news", "Old School News", osrsWikiImage("Newspaper.png"), route = "web/news"),
+    QuickAction("timers", "Timers", osrsWikiImage("Watch.png"), route = "timers")
 )
-
 object QuickActionStore {
     private const val PREFS = "quick_actions_v2"
 
@@ -245,7 +253,7 @@ private fun CompanionApp() {
         NavHost(navController = nav, startDestination = "home") {
             composable("home") { HomeScreen(nav) }
             composable("timers") { TimersScreen(nav) }
-            composable("quick") { QuickActionsScreen(nav) }
+            composable("quick") { QuickWidgetsV2Screen(nav) }
             composable("puzzle") { NativePuzzleScreen(nav) }
             composable("about") { AboutScreen(nav) }
             composable("web/{key}") { entry ->
@@ -344,7 +352,15 @@ private fun StoneButton(tool: Tool, onClick: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(tool.icon, fontSize = 28.sp)
+        AsyncImage(
+            model = tool.icon,
+            contentDescription = tool.title,
+            modifier = Modifier.height(34.dp),
+            contentScale = ContentScale.Fit,
+            error = painterResource(R.mipmap.ic_launcher),
+            fallback = painterResource(R.mipmap.ic_launcher),
+            placeholder = painterResource(R.mipmap.ic_launcher)
+        )
         Spacer(Modifier.height(4.dp))
         Text(tool.title, color = TextLight, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(3.dp))
@@ -379,7 +395,15 @@ private fun QuickMiniCard(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(action.icon, fontSize = 20.sp)
+            AsyncImage(
+                model = imageForQuickAction(action),
+                contentDescription = action.label,
+                modifier = Modifier.height(30.dp),
+                contentScale = ContentScale.Fit,
+                error = painterResource(R.mipmap.ic_launcher),
+                fallback = painterResource(R.mipmap.ic_launcher),
+                placeholder = painterResource(R.mipmap.ic_launcher)
+            )
             Text(
                 action.label,
                 color = RuneGold,
@@ -437,7 +461,7 @@ private fun TimersScreen(nav: NavHostController) {
             QuickAction(
                 id = "custom_" + System.currentTimeMillis(),
                 label = safeLabel,
-                icon = "💤",
+                icon = osrsWikiImage("Watch.png"),
                 seconds = total
             )
         )
@@ -461,7 +485,7 @@ private fun TimersScreen(nav: NavHostController) {
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924))) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("💤  CUSTOM / AFK TIMER", color = RuneGold, fontWeight = FontWeight.Bold)
+                        Text("CUSTOM / AFK TIMER", color = RuneGold, fontWeight = FontWeight.Bold)
                         Text(
                             "Choose minutes and seconds. The timer can notify even after you close the app.",
                             color = Parchment
@@ -543,7 +567,7 @@ private fun TimersScreen(nav: NavHostController) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("💤 " + timer.label, color = TextLight, fontWeight = FontWeight.Bold)
+                                Text(timer.label, color = TextLight, fontWeight = FontWeight.Bold)
                                 Text(formatSeconds(left), color = RuneGold)
                             }
                             TextButton(onClick = {
@@ -1057,7 +1081,7 @@ private fun AboutScreen(nav: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("OSRS Companion Tool", color = RuneGold, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Version 0.2.3", color = Parchment)
+            Text("Version 0.3.0", color = Parchment)
             Text("Free and open source. Timer and quick-widget data stays on your device.", color = TextLight)
             Text("github.com/mandecoy/OSRS-Mobile-Companion", color = RuneGold)
             Text("Web tools are third-party services and remain subject to their own policies and availability.", color = Parchment, fontSize = 12.sp)
@@ -1068,7 +1092,7 @@ private fun AboutScreen(nav: NavHostController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Screen(
+fun Screen(
     nav: NavHostController,
     title: String,
     content: @Composable (PaddingValues) -> Unit
