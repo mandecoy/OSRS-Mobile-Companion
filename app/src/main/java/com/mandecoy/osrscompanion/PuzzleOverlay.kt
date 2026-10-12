@@ -6,6 +6,7 @@ import android.graphics.Rect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -149,9 +150,12 @@ private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
         gap = tapped
     }
 
-    // Rebuild the current board from the canonical solved reference image.
-    // This avoids carrying screenshot crop/grid artifacts forward between moves.
+    // Picture tiles come from the official solved artwork. The GAP is rendered
+    // using the actual blank tile from the player's screenshot, never the
+    // picture's bottom-right cell (which might contain artwork).
     val source = solved.reference
+    val originalGap = solved.board.indexOf(gapTile)
+    val realBlank = solved.preview
     val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
 
@@ -176,8 +180,58 @@ private fun renderPuzzleAtMove(solved: PuzzleAnalysis, moveCount: Int): Bitmap {
             (dstCol + 1) * source.width / side,
             (dstRow + 1) * source.height / side
         )
-        canvas.drawBitmap(source, src, dst, null)
+        if (tile == gapTile && originalGap >= 0) {
+            val blankCol = originalGap % side
+            val blankRow = originalGap / side
+            val blankSrc = Rect(
+                blankCol * realBlank.width / side,
+                blankRow * realBlank.height / side,
+                (blankCol + 1) * realBlank.width / side,
+                (blankRow + 1) * realBlank.height / side
+            )
+            canvas.drawBitmap(realBlank, blankSrc, dst, null)
+        } else {
+            canvas.drawBitmap(source, src, dst, null)
+        }
     }
 
     return output
+}
+
+/** Tap any of the actual 5x5 screenshot cells to correct a mistaken gap. */
+@Composable
+fun EmptySpacePicker(screenshot: Bitmap, onSelect: (Int) -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = OverlayDark),
+        border = BorderStroke(2.dp, OverlayGold)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .padding(8.dp)
+        ) {
+            Image(
+                bitmap = screenshot.asImageBitmap(),
+                contentDescription = "Tap the actual empty square in the original puzzle screenshot",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                for (row in 0 until 5) {
+                    Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        for (col in 0 until 5) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxSize()
+                                    .border(1.dp, OverlayGold.copy(alpha = 0.50f))
+                                    .clickable { onSelect(row * 5 + col) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
