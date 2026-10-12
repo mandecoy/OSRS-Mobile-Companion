@@ -939,7 +939,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
         ) {
             item {
                 Text(
-                    "Upload the screenshot from OSRS. The app identifies it against the seven official puzzle images, reconstructs the board, and calculates a fast solution. Five upcoming taps are numbered directly on the puzzle. Tap 1–5 in order, then press Next 5. A non-focusing Puzzle Bubble can stay over OSRS.",
+                    "Upload your actual OSRS 5×5 puzzle screenshot. Check each square against the recognized image. If any tile is wrong, select it in the screenshot and tap its matching picture in the solved artwork. Your edits are saved; confirm the corrected board before following the five-move instructions.",
                     color = Parchment
                 )
             }
@@ -985,7 +985,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     }
                     item {
                         Text(
-                            "Compare the original screenshot FIRST with the reconstructed picture BELOW. If any tile differs, use Fix ANY tile / EMPTY before displaying tap instructions.",
+                            "Compare the original screenshot FIRST with the reconstructed picture BELOW. If any square differs, use the visual tile editor: tap its square in the screenshot, then tap its matching picture in the solved image. Recalculate and VERIFY before using moves.",
                             color = TextLight, fontSize = 13.sp
                         )
                     }
@@ -995,6 +995,19 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 "Recognition detected an IMPOSSIBLE tile arrangement (odd parity). No moves will be shown. Use Fix ANY tile / EMPTY to correct tile assignments, then recalculate.",
                                 color = Color(0xffffaa80), fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+                    if (PuzzleEngine.hasLearnedArtwork(context, solved.puzzleName)) {
+                        item {
+                            OutlinedButton(
+                                onClick = {
+                                    PuzzleEngine.forgetLearnedArtwork(context, solved.puzzleName)
+                                    recognitionNote = "Previous learned tile templates cleared for ${solved.puzzleName}. Current edits remain saved; upload a screenshot again to rematch with official artwork."
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Reset remembered picture matches for this puzzle")
+                            }
                         }
                     }
                     item { PuzzleRecognitionComparison(solved) }
