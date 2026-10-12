@@ -2,12 +2,15 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.4.0**  
+**Current stable version: 0.5.0**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
 
 - Custom timers with separate minute and second fields
+- Non-focus floating companion overlay that stays above OSRS
+- Draggable floating timer with pause, restart, stop, and repeat ON/OFF
+- Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
 - Farming/run timer presets
@@ -18,6 +21,12 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Numbered move overlays directly on the Puzzle Box tiles
 - Five-move Puzzle Box batches with Previous / Next 5 navigation
 - Native Light Box solver with highlighted A-H switch guidance
+- Native GE Tools with flip finder, most-traded items, gainers/losers, Death's Coffer estimates, and item price charts
+- Native High Alch profitability finder using recent prices, Nature rune cost, volume, and buy limits
+- Local flipping portfolio with realized/unrealized P&L, watchlist, and periodic price alerts
+- Searchable Fairy Ring directory with code and location
+- Persistent local notepad
+- Reorderable main tools and Quick Widgets
 - Grand Exchange prices
 - OSRS Wiki
 - Wise Old Man
@@ -68,7 +77,7 @@ app/build/outputs/apk/debug/app-debug.apk
 
 OSRS Companion Tool has no account system and no analytics.
 
-Timer and Quick Widget settings are stored locally on the device. Some tools display or link to third-party services, including the OSRS Wiki, Wise Old Man, OSRS Portal, OldSchool.tools, and Jagex websites. Those services have their own privacy policies and terms.
+Timer, reminder, Quick Widget, portfolio, watchlist, price-alert, notepad, and layout settings are stored locally on the device. Live GE tools fetch public price data from the RuneScape Wiki price API. Some tools display or link to third-party services, including the OSRS Wiki, Wise Old Man, OSRS Portal, OldSchool.tools, and Jagex websites. Those services have their own privacy policies and terms.
 
 ## Open source
 
