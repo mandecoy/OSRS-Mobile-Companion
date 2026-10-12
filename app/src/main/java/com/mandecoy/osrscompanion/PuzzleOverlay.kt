@@ -41,9 +41,11 @@ fun AnnotatedPuzzlePreview(
     solved: PuzzleAnalysis,
     start: Int
 ) {
-    // Only show the current move on the board. Later moves happen after the
-    // board changes, so drawing all five labels on one static image is misleading.
-    val hints = PuzzleEngine.moveHints(solved.board, solved.moves, start, 1)
+    // The board represents the state BEFORE this batch. All numbered markers
+    // are screen-cell coordinates to tap IN ORDER; each subsequent OSRS tap
+    // moves the artwork and gap, but not the marker's screen coordinate.
+    val hints = PuzzleEngine.moveHints(solved.board, solved.moves, start, 5)
+    val hintsByPosition = remember(solved, start) { hints.groupBy { it.position } }
     val gap = PuzzleEngine.gapPositionAt(solved.board, solved.moves, start)
     val previewAtStart = remember(solved, start) { renderPuzzleAtMove(solved, start) }
 
@@ -59,7 +61,7 @@ fun AnnotatedPuzzlePreview(
         ) {
             Image(
                 bitmap = previewAtStart.asImageBitmap(),
-                contentDescription = "Recognized Puzzle Box with current move overlay",
+                contentDescription = "Puzzle with all five next moves numbered in tap order",
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
@@ -69,7 +71,7 @@ fun AnnotatedPuzzlePreview(
                     Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                         for (col in 0 until 5) {
                             val position = row * 5 + col
-                            val cellHints = hints.filter { it.position == position }
+                            val cellHints = hintsByPosition[position].orEmpty()
 
                             Box(
                                 modifier = Modifier
@@ -104,10 +106,16 @@ fun AnnotatedPuzzlePreview(
                                 }
 
                                 if (cellHints.isNotEmpty()) {
+                                    // A position may be tapped twice in a group.
+                                    // Show BOTH step numbers instead of losing one.
                                     Column(
                                         modifier = Modifier
                                             .background(
-                                                OverlayGold.copy(alpha = 0.94f),
+                                                OverlayGold.copy(alpha = 0.96f),
+                                                RoundedCornerShape(6.dp)
+                                            )
+                                            .border(
+                                                1.dp, Color.Black.copy(alpha = 0.8f),
                                                 RoundedCornerShape(6.dp)
                                             )
                                             .padding(horizontal = 4.dp, vertical = 2.dp),
@@ -116,10 +124,12 @@ fun AnnotatedPuzzlePreview(
                                     ) {
                                         cellHints.forEach { hint ->
                                             Text(
-                                                hint.moveNumber.toString() + hint.arrow,
+                                                hint.moveNumber.toString(),
                                                 color = Color.Black,
-                                                fontSize = if (cellHints.size > 1) 10.sp else 13.sp,
-                                                lineHeight = 13.sp,
+                                                fontSize = if (cellHints.size > 2) 10.sp
+                                                           else if (cellHints.size > 1) 13.sp
+                                                           else 19.sp,
+                                                lineHeight = if (cellHints.size > 1) 14.sp else 22.sp,
                                                 fontWeight = FontWeight.Black,
                                                 textAlign = TextAlign.Center
                                             )
