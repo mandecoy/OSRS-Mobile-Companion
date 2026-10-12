@@ -5,6 +5,27 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
@@ -136,6 +157,81 @@ class GameReminderReceiver : BroadcastReceiver() {
                     "Zaff's battlestaves have reset"
                 )
                 GameReminderScheduler.scheduleZaff(context)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun GameRemindersCard(context: Context) {
+    var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
+    var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xff2e2924)),
+        border = BorderStroke(1.dp, Color(0xff8b6722))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("DAILY & WEEKLY REMINDERS", color = Color(0xffd7a93f), fontWeight = FontWeight.Bold)
+            Text(
+                "Optional local notifications. No server or account needed.",
+                color = Color(0xffd7c7a4),
+                fontSize = 12.sp
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Tears of Guthix", color = Color(0xfff4ead4), fontWeight = FontWeight.Bold)
+                    Text(
+                        "Weekly reminder. Tap “Done today” after you collect tears to anchor the next reminder.",
+                        color = Color(0xffd7c7a4),
+                        fontSize = 11.sp
+                    )
+                }
+                Switch(
+                    checked = tearsEnabled,
+                    onCheckedChange = {
+                        tearsEnabled = it
+                        GameReminderStore.setTearsEnabled(context, it)
+                    }
+                )
+            }
+
+            if (tearsEnabled) {
+                OutlinedButton(
+                    onClick = { GameReminderStore.markTearsDoneToday(context) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Tears of Guthix — Done today")
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Zaff's battlestaves", color = Color(0xfff4ead4), fontWeight = FontWeight.Bold)
+                    Text(
+                        "Daily notification when the stock resets at 00:00 UTC.",
+                        color = Color(0xffd7c7a4),
+                        fontSize = 11.sp
+                    )
+                }
+                Switch(
+                    checked = zaffEnabled,
+                    onCheckedChange = {
+                        zaffEnabled = it
+                        GameReminderStore.setZaffEnabled(context, it)
+                    }
+                )
             }
         }
     }
