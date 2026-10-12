@@ -138,6 +138,10 @@ class FloatingOverlayService : Service() {
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var menuView: LinearLayout? = null
     private var puzzleView: LinearLayout? = null
+    // Only windows launched THROUGH the OSRS bubble are closed with it.
+    // Puzzle windows launched from the in-app solver remain independent.
+    private var puzzleOpenedFromBubble = false
+    private var timerOpenedFromBubble = false
     private var timerView: LinearLayout? = null
     private var timerParams: WindowManager.LayoutParams? = null
     private var countdownText: TextView? = null
@@ -212,9 +216,12 @@ class FloatingOverlayService : Service() {
 
         when (intent?.action) {
             ACTION_SHOW_COMPANION -> showCompanionBubble()
-            ACTION_SHOW_PUZZLE -> showPuzzleBubble()
+            ACTION_SHOW_PUZZLE -> showPuzzleBubble(fromBubble = false)
             ACTION_HIDE_COMPANION -> hideCompanionBubble()
-            ACTION_START_TIMER -> startTimerFromPrefs()
+            ACTION_START_TIMER -> {
+                timerOpenedFromBubble = false
+                startTimerFromPrefs()
+            }
             ACTION_STOP_TIMER -> {
                 stopTimerOverlay()
                 maybeStopService()
@@ -289,8 +296,18 @@ class FloatingOverlayService : Service() {
     }
 
     private fun hideCompanionBubble() {
+        // Dismiss every popup that this bubble created. Keep running timer
+        // state alive while hiding only its window; showing it again should
+        // reveal the same countdown instead of starting it over.
         removeViewSafely(menuView)
         menuView = null
+        if (puzzleOpenedFromBubble) {
+            hidePuzzleBubble()
+        }
+        if (timerOpenedFromBubble) {
+            timerView?.visibility = View.GONE
+            timerOpenedFromBubble = false
+        }
         removeViewSafely(bubbleView)
         bubbleView = null
         bubbleParams = null
@@ -328,18 +345,20 @@ class FloatingOverlayService : Service() {
                 current.visibility =
                     if (current.visibility == View.VISIBLE) View.GONE else View.VISIBLE
             }
+            timerOpenedFromBubble = true
             removeViewSafely(menuView)
             menuView = null
         }
         menuItem("Edit Timer") {
             if (timerView == null) startTimerFromPrefs()
+            timerOpenedFromBubble = true
             timerView?.visibility = View.VISIBLE
             showTimerEditor()
             removeViewSafely(menuView)
             menuView = null
         }
         menuItem("Puzzle Box") {
-            showPuzzleBubble()
+            showPuzzleBubble(fromBubble = true)
             removeViewSafely(menuView)
             menuView = null
         }
@@ -365,90 +384,140 @@ class FloatingOverlayService : Service() {
      * five-move arrows nor the drag handle launches or focuses our Activity.
      * OSRS therefore keeps its foreground/input focus while playing.
      */
-    private fun showPuzzleBubble() {
+    private fun showPuzzleBubble(fromBubble: Boolean = false) {
         val solved = PuzzleBubbleStore.load(this)
         if (solved == null) {
             android.widget.Toast.makeText(
-                this, "Upload a puzzle screenshot inside Companion first",
+                this, "Upload and verify a puzzle inside Companion first",
                 android.widget.Toast.LENGTH_LONG
             ).show()
             return
         }
         removeViewSafely(puzzleView)
         puzzleView = null
+        puzzleOpenedFromBubble = fromBubble
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = roundedBackground(0xf5201c18.toInt(), 13f)
-        }
-        val title = TextView(this).apply {
-            text = "PUZZLE  ·  DRAG HERE"
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setTextColor(0xffd7a93f.toInt())
-            setPadding(dp(4), dp(5), dp(4), dp(8))
-        }
-        root.addView(title)
-
-        val position = FloatingPrefs.bubblePosition(this)
+        // OSRS is typically in landscape: the original fixed 278dp square
+        // plus buttons was taller than the entire usable screen. Work from
+        // the ACTUAL pixel height and reserve vertical space for both arrows.
         val screenWidth = resources.displayMetrics.widthPixels
         val screenHeight = resources.displayMetrics.heightPixels
-        val x = (position.first + dp(58)).coerceIn(0, (screenWidth - dp(300)).coerceAtLeast(0))
-        val y = position.second.coerceIn(0, (screenHeight - dp(390)).coerceAtLeast(0))
-        val params = overlayParams(dp(296), WindowManager.LayoutParams.WRAP_CONTENT, x, y)
+        val square = minOf(
+            dp(188),
+            (screenWidth - dp(32)).coerceAtLeast(dp(72)),
+            (screenHeight - dp(151)).coerceAtLeast(dp(72))
+        )
+        val outerWidth = square + dp(12)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(6), dp(5), dp(6), dp(6))
+            background = roundedBackground(0xfa201c18.toInt(), 12f)
+        }
+
+        val position = FloatingPrefs.bubblePosition(this)
+        val initialHeight = square + dp(125)
+        val x = (position.first + dp(58)).coerceIn(
+            0, (screenWidth - outerWidth).coerceAtLeast(0)
+        )
+        val y = position.second.coerceIn(
+            0, (screenHeight - initialHeight - dp(10)).coerceAtLeast(0)
+        )
+        val params = overlayParams(
+            outerWidth, WindowManager.LayoutParams.WRAP_CONTENT, x, y
+        )
+
+        // Close is permanently available at the TOP, rather than at the
+        // bottom of a long overlay where it disappeared off-screen.
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val title = TextView(this).apply {
+            text = "PUZZLE  ·  DRAG"
+            textSize = 11f
+            gravity = Gravity.CENTER
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(0xffd7a93f.toInt())
+        }
+        header.addView(title, LinearLayout.LayoutParams(0, dp(33), 1f))
+        val close = overlayButton("✕") {
+            hidePuzzleBubble()
+        }.apply {
+            textSize = 20f
+            contentDescription = "Close puzzle window"
+        }
+        header.addView(close, LinearLayout.LayoutParams(dp(38), dp(33)))
+        root.addView(header, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(33)
+        ))
 
         val picture = PuzzleBubbleBoard(this)
-        root.addView(picture, LinearLayout.LayoutParams(dp(278), dp(278)))
+        root.addView(picture, LinearLayout.LayoutParams(square, square))
 
         val counter = TextView(this).apply {
             gravity = Gravity.CENTER
             setTextColor(AndroidColor.WHITE)
-            textSize = 14f
-            setPadding(dp(2), dp(7), dp(2), dp(5))
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textSize = 12f
+            setPadding(dp(2), dp(3), dp(2), dp(2))
         }
-        root.addView(counter)
+        root.addView(counter, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(28)
+        ))
 
         val steps = TextView(this).apply {
             gravity = Gravity.CENTER
             setTextColor(0xffd7c7a4.toInt())
             textSize = 10f
-            setPadding(dp(2), dp(2), dp(2), dp(5))
+            maxLines = 1
         }
-        root.addView(steps)
+        root.addView(steps, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(19)
+        ))
+
         var index = PuzzleBubbleStore.start(this).coerceIn(0, solved.moves.size)
-        fun redraw() {
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val previous = overlayButton("◀ Prev 5") {
+            index = (index - 5).coerceAtLeast(0)
+            redrawPuzzle()
+        }
+        val next = overlayButton("Next 5 ▶") {
+            index = (index + 5).coerceAtMost(solved.moves.size)
+            redrawPuzzle()
+        }
+        previous.textSize = 12f
+        next.textSize = 12f
+        actions.addView(previous, LinearLayout.LayoutParams(0, dp(39), 1f).apply {
+            rightMargin = dp(3)
+        })
+        actions.addView(next, LinearLayout.LayoutParams(0, dp(39), 1f).apply {
+            leftMargin = dp(3)
+        })
+        root.addView(actions, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(39)
+        ))
+        fun redrawPuzzle() {
             picture.show(solved, index)
             val last = minOf(index + 5, solved.moves.size)
-            counter.text = if (index < solved.moves.size) {
-                "Moves " + (index + 1) + "–" + last + " / " + solved.moves.size
-            } else "Puzzle complete — " + solved.moves.size + " moves"
-            val instructions = PuzzleEngine.moveHints(
+            counter.text = if (index < solved.moves.size)
+                "Moves ${index + 1}–$last of ${solved.moves.size}"
+            else "Puzzle complete (${solved.moves.size} moves)"
+            steps.text = PuzzleEngine.moveHints(
                 solved.board, solved.moves, index, 5
-            )
-            steps.text = instructions.joinToString("   ") {
-                it.moveNumber.toString() + it.arrow
-            }
+            ).joinToString("   ") { "${it.moveNumber}${it.arrow}" }
+            previous.isEnabled = index > 0
+            previous.alpha = if (previous.isEnabled) 1f else 0.45f
+            next.isEnabled = index < solved.moves.size
+            next.alpha = if (next.isEnabled) 1f else 0.45f
             PuzzleBubbleStore.setStart(this, index)
         }
 
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val previous = overlayButton("← Previous 5") {
-            index = (index - 5).coerceAtLeast(0)
-            redraw()
-        }
-        val next = overlayButton("Next 5 →") {
-            index = (index + 5).coerceAtMost(solved.moves.size)
-            redraw()
-        }
-        val hide = overlayButton("✕") { hidePuzzleBubble() }
-        row.addView(previous, LinearLayout.LayoutParams(0, dp(42), 1f))
-        row.addView(next, LinearLayout.LayoutParams(0, dp(42), 1f))
-        row.addView(hide, LinearLayout.LayoutParams(dp(38), dp(42)))
-        root.addView(row)
-
-        // Dragging the title moves the overlay without transferring keyboard or
-        // input focus from the game to the Companion application.
+        // Dragging the title is restricted to visible screen coordinates.
+        // The fixed short layout always keeps X and both arrows reachable.
         var downX = 0f
         var downY = 0f
         var originX = 0
@@ -463,27 +532,46 @@ class FloatingOverlayService : Service() {
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = (originX + (event.rawX - downX).toInt()).coerceAtLeast(0)
-                    params.y = (originY + (event.rawY - downY).toInt()).coerceAtLeast(0)
-                    try { windowManager.updateViewLayout(root, params) } catch (_: Exception) {}
+                    params.x = (originX + (event.rawX - downX).toInt()).coerceIn(
+                        0, (screenWidth - outerWidth).coerceAtLeast(0)
+                    )
+                    params.y = (originY + (event.rawY - downY).toInt()).coerceIn(
+                        0, (screenHeight - root.height - dp(12)).coerceAtLeast(0)
+                    )
+                    try { windowManager.updateViewLayout(root, params) }
+                    catch (_: Exception) {}
                     true
                 }
                 MotionEvent.ACTION_UP -> true
                 else -> false
             }
         }
+
         puzzleView = root
-        redraw()
+        redrawPuzzle()
         try {
             windowManager.addView(root, params)
+            root.post {
+                if (puzzleView !== root) return@post
+                params.y = params.y.coerceIn(
+                    0, (screenHeight - root.height - dp(12)).coerceAtLeast(0)
+                )
+                params.x = params.x.coerceIn(
+                    0, (screenWidth - root.width).coerceAtLeast(0)
+                )
+                try { windowManager.updateViewLayout(root, params) }
+                catch (_: Exception) {}
+            }
         } catch (_: Exception) {
             puzzleView = null
+            puzzleOpenedFromBubble = false
         }
     }
 
     private fun hidePuzzleBubble() {
         removeViewSafely(puzzleView)
         puzzleView = null
+        puzzleOpenedFromBubble = false
         maybeStopService()
     }
 
