@@ -42,15 +42,11 @@ object GameReminderStore {
     private const val TEARS_LAST_DONE_UTC_DAY = "tears_last_done_utc_day"
     private const val TEARS_LAST_PRESSED_AT = "tears_done_pressed_at"
     private const val ZAFF_ENABLED = "zaff_enabled"
-    private const val ZAFF_DONE_PRESSED_AT = "zaff_done_pressed_at"
-    private const val ZAFF_LAST_COLLECTED_UTC_DAY = "zaff_battlestaves_collected_utc_day"
     private const val MISC_ENABLED = "misc_enabled"
     private const val MISC_LAST_DONE = "misc_last_done"
     private const val MISC_LAST_PRESSED_AT = "misc_done_pressed_at"
     private const val MISC_INTERVAL_DAYS = "misc_interval_days"
     private const val NMZ_ENABLED = "nmz_enabled"
-    private const val NMZ_DONE_PRESSED_AT = "nmz_done_pressed_at"
-    private const val NMZ_LAST_COLLECTED_UTC_DAY = "nmz_herb_boxes_collected_utc_day"
 
     fun tearsEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -76,28 +72,6 @@ object GameReminderStore {
         else GameReminderScheduler.cancelNmz(context)
     }
 
-    fun markNmzDoneNow(context: Context) {
-        val now = System.currentTimeMillis()
-        val day = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
-            .toInstant().toEpochMilli()
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(NMZ_LAST_COLLECTED_UTC_DAY, day)
-            .putLong(NMZ_DONE_PRESSED_AT, now)
-            .apply()
-        if (nmzEnabled(context)) GameReminderScheduler.scheduleNmz(context)
-    }
-
-    fun nmzDonePressedAt(context: Context): Long? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(NMZ_DONE_PRESSED_AT, 0L).takeIf { it > 0L }
-
-    fun nmzCollectedToday(context: Context): Boolean {
-        val today = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
-            .toInstant().toEpochMilli()
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(NMZ_LAST_COLLECTED_UTC_DAY, -1L) == today
-    }
-
     /** Defaults to the previous 24-hour reminder; accepts whole days, 1–7. */
     fun miscellaniaIntervalDays(context: Context): Int =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -121,29 +95,6 @@ object GameReminderStore {
             .edit().putBoolean(ZAFF_ENABLED, enabled).apply()
         if (enabled) GameReminderScheduler.scheduleZaff(context)
         else GameReminderScheduler.cancelZaff(context)
-    }
-
-    /** Remember Zaff's collection independently of NMZ and Miscellania. */
-    fun markZaffDoneNow(context: Context) {
-        val now = System.currentTimeMillis()
-        val day = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
-            .toInstant().toEpochMilli()
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(ZAFF_LAST_COLLECTED_UTC_DAY, day)
-            .putLong(ZAFF_DONE_PRESSED_AT, now)
-            .apply()
-        if (zaffEnabled(context)) GameReminderScheduler.scheduleZaff(context)
-    }
-
-    fun zaffDonePressedAt(context: Context): Long? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(ZAFF_DONE_PRESSED_AT, 0L).takeIf { it > 0L }
-
-    fun zaffCollectedToday(context: Context): Boolean {
-        val today = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
-            .toInstant().toEpochMilli()
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(ZAFF_LAST_COLLECTED_UTC_DAY, -1L) == today
     }
 
     fun setMiscellaniaEnabled(context: Context, enabled: Boolean) {
@@ -337,8 +288,8 @@ class GameReminderReceiver : BroadcastReceiver() {
                 TimerNotifications.show(
                     context, 7304, "NMZ Herb Boxes ready — collect up to 15 today"
                 )
-                // Reschedule for the next 00:00 UTC reset; never overwrite
-                // the player's actual herb-box collection timestamp.
+                // Schedule the next daily UTC reset independently of the
+                // separate Miscellania and Tears Done buttons.
                 GameReminderScheduler.scheduleNmz(context)
             }
         }
@@ -366,13 +317,11 @@ internal fun lastDoneText(pressedAt: Long?, now: Long): String {
 fun GameRemindersCard(context: Context) {
     var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
     var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
-    var zaffLastPressed by remember { mutableStateOf(GameReminderStore.zaffDonePressedAt(context)) }
     var miscellaniaEnabled by remember { mutableStateOf(GameReminderStore.miscellaniaEnabled(context)) }
     var miscellaniaDays by remember { mutableIntStateOf(GameReminderStore.miscellaniaIntervalDays(context)) }
     var tearsLastPressed by remember { mutableStateOf(GameReminderStore.tearsDonePressedAt(context)) }
     var miscLastPressed by remember { mutableStateOf(GameReminderStore.miscellaniaDonePressedAt(context)) }
     var nmzEnabled by remember { mutableStateOf(GameReminderStore.nmzEnabled(context)) }
-    var nmzLastPressed by remember { mutableStateOf(GameReminderStore.nmzDonePressedAt(context)) }
     var displayTime by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -436,6 +385,12 @@ fun GameRemindersCard(context: Context) {
                 }
             }
 
+            Text(
+                "DAILY COLLECTIONS • NMZ HERB BOXES + ZAFF",
+                color = Color(0xffd7a93f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -447,12 +402,6 @@ fun GameRemindersCard(context: Context) {
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
-                    Text(
-                        lastDoneText(zaffLastPressed, displayTime),
-                        color = Color(0xffd7a93f),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
                 }
                 Switch(
                     checked = zaffEnabled,
@@ -463,24 +412,6 @@ fun GameRemindersCard(context: Context) {
                 )
             }
 
-            if (zaffEnabled) {
-                OutlinedButton(
-                    onClick = {
-                        GameReminderStore.markZaffDoneNow(context)
-                        zaffLastPressed = GameReminderStore.zaffDonePressedAt(context)
-                        displayTime = System.currentTimeMillis()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Zaff Battlestaves — Collected today")
-                }
-            }
-            Text(
-                "DAILY COLLECTIONS • NMZ HERB BOXES + ZAFF",
-                color = Color(0xffd7a93f),
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -496,12 +427,6 @@ fun GameRemindersCard(context: Context) {
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
-                    Text(
-                        lastDoneText(nmzLastPressed, displayTime),
-                        color = Color(0xffd7a93f),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
                 }
                 Switch(
                     checked = nmzEnabled,
@@ -510,39 +435,6 @@ fun GameRemindersCard(context: Context) {
                         GameReminderStore.setNmzEnabled(context, it)
                     }
                 )
-            }
-            Text(
-                if (GameReminderStore.nmzCollectedToday(context))
-                    "Herb boxes: collected today (UTC)"
-                else "Herb boxes: not marked collected today",
-                color = Color(0xffd7c7a4),
-                fontSize = 12.sp
-            )
-            if (nmzEnabled) {
-                OutlinedButton(
-                    onClick = {
-                        GameReminderStore.markNmzDoneNow(context)
-                        nmzLastPressed = GameReminderStore.nmzDonePressedAt(context)
-                        displayTime = System.currentTimeMillis()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("NMZ Herb Boxes — Collected today")
-                }
-            }
-            if (nmzEnabled && zaffEnabled) {
-                OutlinedButton(
-                    onClick = {
-                        GameReminderStore.markNmzDoneNow(context)
-                        GameReminderStore.markZaffDoneNow(context)
-                        nmzLastPressed = GameReminderStore.nmzDonePressedAt(context)
-                        zaffLastPressed = GameReminderStore.zaffDonePressedAt(context)
-                        displayTime = System.currentTimeMillis()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Done Both — NMZ Herb Boxes + Zaff Battlestaves")
-                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
