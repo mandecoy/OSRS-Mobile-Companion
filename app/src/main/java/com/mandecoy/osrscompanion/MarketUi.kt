@@ -9,6 +9,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,10 +19,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -41,10 +46,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlin.math.max
+import kotlinx.coroutines.delay
 
 private val MStoneDark = Color(0xff201c18)
 private val MStone = Color(0xff2e2924)
@@ -479,6 +488,19 @@ fun PortfolioScreen(nav: NavHostController) {
     val watchIds = remember(revision) { WatchlistStore.ids(context) }
     val alerts = remember(revision) { PriceAlertStore.all(context) }
     var itemSearch by remember { mutableStateOf("") }
+    var searchFocused by remember { mutableStateOf(false) }
+    val portfolioListState = rememberLazyListState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    // The portfolio summary precedes the item selector. When the keyboard
+    // opens, scroll the selector to the TOP of the resized viewport so the
+    // resulting menu remains reachable above the IME.
+    LaunchedEffect(itemSearch, searchFocused, state.error) {
+        if (searchFocused && itemSearch.length >= 2) {
+            delay(110L)
+            portfolioListState.scrollToItem(if (state.error != null) 5 else 4)
+        }
+    }
     var sortWatchlistByProfit by remember { mutableStateOf(true) }
     var watchInsights by remember { mutableStateOf<Map<Int, FlipInsight>>(emptyMap()) }
     var watchInsightsLoading by remember { mutableStateOf(false) }
@@ -513,7 +535,8 @@ fun PortfolioScreen(nav: NavHostController) {
 
     Screen(nav, "Portfolio") { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            state = portfolioListState,
+            modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
             contentPadding = PaddingValues(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -571,26 +594,59 @@ fun PortfolioScreen(nav: NavHostController) {
             item {
                 Text("ADD / FIND ITEM", color = MGold, fontWeight = FontWeight.Bold)
             }
-            item {
-                OutlinedTextField(
-                    value = itemSearch,
-                    onValueChange = { itemSearch = it.take(40) },
-                    label = { Text("Search item") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            if (itemSearch.length >= 2 && state.snapshot != null) {
-                val choices = state.snapshot.items
-                    .filter { it.name.contains(itemSearch, ignoreCase = true) }
-                    .take(8)
-                items(choices, key = { "choice_" + it.id }) { item ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            nav.navigate("market_item/" + item.id)
-                        },
-                        colors = CardDefaults.cardColors(containerColor = MStoneLight)
-                    ) {
-                        Text(item.name, color = MText, modifier = Modifier.padding(10.dp))
+            item(key = "portfolio_item_search") {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    OutlinedTextField(
+                        value = itemSearch,
+                        onValueChange = { itemSearch = it.take(40) },
+                        label = { Text("Search item") },
+                        placeholder = { Text("Type at least 2 letters") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                            .onFocusChanged { searchFocused = it.isFocused }
+                    )
+                    if (itemSearch.length >= 2 && state.snapshot != null) {
+                        val choices = state.snapshot.items
+                            .filter { it.name.contains(itemSearch.trim(), ignoreCase = true) }
+                            .take(15)
+                        Text(
+                            if (choices.isEmpty()) "No matching items"
+                            else "MATCHES • ${choices.size} shown — scroll to see more",
+                            color = MGold, fontSize = 11.sp
+                        )
+                        // A limited-height menu scrolls INDEPENDENTLY. The old
+                        // choices were separate LazyColumn rows and disappeared
+                        // behind the keyboard below the visible viewport.
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(max = 230.dp)
+                                .background(MStoneLight, RoundedCornerShape(10.dp))
+                                .verticalScroll(rememberScrollState())
+                                .padding(5.dp),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            choices.forEach { choice ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                        itemSearch = ""
+                                        nav.navigate("market_item/" + choice.id)
+                                    },
+                                    colors = CardDefaults.cardColors(containerColor = MStone)
+                                ) {
+                                    Text(
+                                        choice.name,
+                                        color = MText,
+                                        modifier = Modifier.fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
