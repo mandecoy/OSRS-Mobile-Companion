@@ -306,13 +306,21 @@ private fun buildMarketRows(
             val profit = ask.toLong() - bid.toLong() - geTax(ask)
             if (profit <= 0L) return@mapNotNull null
             val roi = profit * 100.0 / bid.toDouble()
+            val perLimit = item.limit?.takeIf { it > 0 }?.let { profit * it.toLong() }
             MarketRow(
                 item,
-                primary = "+" + gp(profit) + " gp/flip",
-                secondary = "Bid " + gp(bid.toLong()) + " • Ask " + gp(ask.toLong()) +
+                primary = if (mode == "Highest Profit")
+                    "+" + gp(perLimit ?: profit) +
+                        (if (perLimit == null) " gp per item" else " gp per 4h buy limit")
+                    else "+" + gp(profit) + " gp/flip",
+                secondary = "Low-side " + gp(bid.toLong()) +
+                    " • High-side " + gp(ask.toLong()) +
+                    " • Net " + gp(profit) + " gp/item" +
                     " • Tax " + gp(geTax(ask).toLong()) +
-                    " • 1h vol " + volume + " • " + String.format("%.2f%%", roi),
-                value = if (mode == "Highest Profit") profit * (item.limit?.coerceAtLeast(1)?.toLong() ?: 1L) else profit,
+                    " • 1h vol " + volume +
+                    " • ROI " + String.format("%.2f%%", roi) +
+                    " • Indicative prices, not guaranteed fills",
+                value = if (mode == "Highest Profit") (perLimit ?: profit) else profit,
                 positive = true
             )
         }.sortedByDescending { it.value }
