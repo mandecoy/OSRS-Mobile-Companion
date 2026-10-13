@@ -114,7 +114,7 @@ fun GeToolsScreen(nav: NavHostController) {
     var mode by remember { mutableStateOf("Flip Finder") }
     var search by remember { mutableStateOf("") }
     var minVolumeInput by remember { mutableStateOf("100") }
-    val modes = listOf("Flip Finder", "Most Traded", "Gainers", "Losers", "Death's Coffer")
+    val modes = listOf("Flip Finder", "Highest Profit", "Most Traded", "Gainers", "Losers", "Death's Coffer")
 
     Screen(nav, "GE Tools") { padding ->
         LazyColumn(
@@ -169,7 +169,7 @@ fun GeToolsScreen(nav: NavHostController) {
                         label = { Text("Search item") },
                         modifier = Modifier.weight(1f)
                     )
-                    if (mode == "Flip Finder") {
+                    if (mode == "Flip Finder" || mode == "Highest Profit") {
                         OutlinedTextField(
                             value = minVolumeInput,
                             onValueChange = { minVolumeInput = it.filter(Char::isDigit).take(7) },
@@ -230,7 +230,7 @@ private fun buildMarketRows(
     val byId = snapshot.items.associateBy { it.id }
 
     return when (mode) {
-        "Flip Finder" -> snapshot.latest.mapNotNull { (id, price) ->
+        "Flip Finder", "Highest Profit" -> snapshot.latest.mapNotNull { (id, price) ->
             val item = byId[id] ?: return@mapNotNull null
             val ask = price.high ?: return@mapNotNull null
             val bid = price.low ?: return@mapNotNull null
@@ -247,7 +247,7 @@ private fun buildMarketRows(
                 secondary = "Bid " + gp(bid.toLong()) + " • Ask " + gp(ask.toLong()) +
                     " • Tax " + gp(geTax(ask).toLong()) +
                     " • 1h vol " + volume + " • " + String.format("%.2f%%", roi),
-                value = profit,
+                value = if (mode == "Highest Profit") profit * (item.limit?.coerceAtLeast(1)?.toLong() ?: 1L) else profit,
                 positive = true
             )
         }.sortedByDescending { it.value }
