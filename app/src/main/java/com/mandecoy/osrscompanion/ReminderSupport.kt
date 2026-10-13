@@ -47,9 +47,8 @@ object GameReminderStore {
     private const val MISC_LAST_PRESSED_AT = "misc_done_pressed_at"
     private const val MISC_INTERVAL_DAYS = "misc_interval_days"
     private const val NMZ_ENABLED = "nmz_enabled"
-    private const val NMZ_LAST_CHECK = "nmz_last_check"
     private const val NMZ_DONE_PRESSED_AT = "nmz_done_pressed_at"
-    private const val NMZ_INTERVAL_MINUTES = "nmz_interval_minutes"
+    private const val NMZ_LAST_COLLECTED_UTC_DAY = "nmz_herb_boxes_collected_utc_day"
 
     fun tearsEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -67,44 +66,39 @@ object GameReminderStore {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(NMZ_ENABLED, false)
 
-    /** Default 20-minute AFK check. 5–30 minutes supports common NMZ activities. */
-    fun nmzIntervalMinutes(context: Context): Int =
+    /** NMZ herb boxes (up to 15 daily) reset at 00:00 UTC. */
+    fun nmzEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt(NMZ_INTERVAL_MINUTES, 20).coerceIn(5, 30)
-
-    fun setNmzIntervalMinutes(context: Context, minutes: Int) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putInt(NMZ_INTERVAL_MINUTES, minutes.coerceIn(5, 30)).apply()
-        if (nmzEnabled(context)) GameReminderScheduler.scheduleNmz(context)
-    }
+            .getBoolean(NMZ_ENABLED, false)
 
     fun setNmzEnabled(context: Context, enabled: Boolean) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val editor = prefs.edit().putBoolean(NMZ_ENABLED, enabled)
-        // Enabling the toggle isn't equivalent to pressing Done now.
-        if (enabled && prefs.getLong(NMZ_LAST_CHECK, 0L) == 0L)
-            editor.putLong(NMZ_LAST_CHECK, System.currentTimeMillis())
-        editor.apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(NMZ_ENABLED, enabled).apply()
         if (enabled) GameReminderScheduler.scheduleNmz(context)
         else GameReminderScheduler.cancelNmz(context)
     }
 
     fun markNmzDoneNow(context: Context) {
         val now = System.currentTimeMillis()
+        val day = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
+            .toInstant().toEpochMilli()
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(NMZ_LAST_CHECK, now)
+            .putLong(NMZ_LAST_COLLECTED_UTC_DAY, day)
             .putLong(NMZ_DONE_PRESSED_AT, now)
             .apply()
         if (nmzEnabled(context)) GameReminderScheduler.scheduleNmz(context)
     }
 
-    fun nmzLastCheck(context: Context): Long? =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getLong(NMZ_LAST_CHECK, 0L).takeIf { it > 0L }
-
     fun nmzDonePressedAt(context: Context): Long? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getLong(NMZ_DONE_PRESSED_AT, 0L).takeIf { it > 0L }
+
+    fun nmzCollectedToday(context: Context): Boolean {
+        val today = ZonedDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.DAYS)
+            .toInstant().toEpochMilli()
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(NMZ_LAST_COLLECTED_UTC_DAY, -1L) == today
+    }
 
     /** Defaults to the previous 24-hour reminder; accepts whole days, 1–7. */
     fun miscellaniaIntervalDays(context: Context): Int =
@@ -246,11 +240,11 @@ object GameReminderScheduler {
     }
 
     fun scheduleNmz(context: Context) {
-        val now = System.currentTimeMillis()
-        val start = GameReminderStore.nmzLastCheck(context) ?: now
-        val interval = GameReminderStore.nmzIntervalMinutes(context) * 60_000L
-        val elapsed = (now - start).coerceAtLeast(0L)
-        val next = start + ((elapsed / interval) + 1L) * interval
+        // Exactly one notification at each new UTC calendar day. A Done
+        // press records collection but does not move the server's reset.
+        val next = ZonedDateTime.now(ZoneOffset.UTC)
+            .truncatedTo(ChronoUnit.DAYS).plusDays(1)
+            .toInstant().toEpochMilli()
         schedule(context, NMZ_REQUEST, TYPE_NMZ, next)
     }
 
@@ -320,10 +314,10 @@ class GameReminderReceiver : BroadcastReceiver() {
             GameReminderScheduler.TYPE_NMZ -> {
                 if (!GameReminderStore.nmzEnabled(context)) return
                 TimerNotifications.show(
-                    context, 7304, "Nightmare Zone — check in"
+                    context, 7304, "NMZ Herb Boxes ready — collect up to 15 today"
                 )
-                // Repeat reminders until the user switches NMZ off.
-                // Notifications never overwrite their actual Done timestamp.
+                // Reschedule for the next 00:00 UTC reset; never overwrite
+                // the player's actual herb-box collection timestamp.
                 GameReminderScheduler.scheduleNmz(context)
             }
         }
@@ -356,7 +350,6 @@ fun GameRemindersCard(context: Context) {
     var tearsLastPressed by remember { mutableStateOf(GameReminderStore.tearsDonePressedAt(context)) }
     var miscLastPressed by remember { mutableStateOf(GameReminderStore.miscellaniaDonePressedAt(context)) }
     var nmzEnabled by remember { mutableStateOf(GameReminderStore.nmzEnabled(context)) }
-    var nmzMinutes by remember { mutableIntStateOf(GameReminderStore.nmzIntervalMinutes(context)) }
     var nmzLastPressed by remember { mutableStateOf(GameReminderStore.nmzDonePressedAt(context)) }
     var displayTime by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
@@ -509,18 +502,24 @@ fun GameRemindersCard(context: Context) {
                     Text("Manage Miscellania — Done now")
                 }
             }
+            Text(
+                "DAILY COLLECTIONS • paired with Manage Miscellania",
+                color = Color(0xffd7a93f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Nightmare Zone (NMZ)",
+                        "Nightmare Zone (NMZ) — Herb Boxes",
                         color = Color(0xfff4ead4),
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Repeat an AFK check-in reminder every $nmzMinutes minutes.",
+                        "Collect up to 15 herb boxes daily. Notification at the 00:00 UTC reset.",
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
@@ -540,30 +539,12 @@ fun GameRemindersCard(context: Context) {
                 )
             }
             Text(
-                "NMZ check-in interval: $nmzMinutes minutes",
+                if (GameReminderStore.nmzCollectedToday(context))
+                    "Herb boxes: collected today (UTC)"
+                else "Herb boxes: not marked collected today",
                 color = Color(0xffd7c7a4),
                 fontSize = 12.sp
             )
-            Slider(
-                value = nmzMinutes.toFloat(),
-                onValueChange = { fraction ->
-                    val minutes = fraction.roundToInt().coerceIn(5, 30)
-                    if (minutes != nmzMinutes) {
-                        nmzMinutes = minutes
-                        GameReminderStore.setNmzIntervalMinutes(context, minutes)
-                    }
-                },
-                valueRange = 5f..30f,
-                steps = 24,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("5 min", color = Color(0xffd7c7a4), fontSize = 11.sp)
-                Text("30 min", color = Color(0xffd7c7a4), fontSize = 11.sp)
-            }
             if (nmzEnabled) {
                 OutlinedButton(
                     onClick = {
@@ -573,7 +554,21 @@ fun GameRemindersCard(context: Context) {
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Nightmare Zone — Done now")
+                    Text("NMZ Herb Boxes — Collected today")
+                }
+            }
+            if (nmzEnabled && miscellaniaEnabled) {
+                OutlinedButton(
+                    onClick = {
+                        GameReminderStore.markNmzDoneNow(context)
+                        GameReminderStore.markMiscellaniaDoneNow(context)
+                        nmzLastPressed = GameReminderStore.nmzDonePressedAt(context)
+                        miscLastPressed = GameReminderStore.miscellaniaDonePressedAt(context)
+                        displayTime = System.currentTimeMillis()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Done Both — NMZ Herb Boxes + Miscellania")
                 }
             }
         }
