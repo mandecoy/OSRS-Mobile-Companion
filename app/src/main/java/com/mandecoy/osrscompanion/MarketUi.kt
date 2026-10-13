@@ -114,6 +114,8 @@ fun GeToolsScreen(nav: NavHostController) {
     var mode by remember { mutableStateOf("Flip Finder") }
     var search by remember { mutableStateOf("") }
     var minVolumeInput by remember { mutableStateOf("100") }
+    var minPriceInput by remember { mutableStateOf("") }
+    var maxPriceInput by remember { mutableStateOf("") }
     val modes = listOf("Flip Finder", "Highest Profit", "Most Traded", "Gainers", "Losers", "Death's Coffer")
 
     Screen(nav, "GE Tools") { padding ->
@@ -169,15 +171,53 @@ fun GeToolsScreen(nav: NavHostController) {
                         label = { Text("Search item") },
                         modifier = Modifier.weight(1f)
                     )
-                    if (mode == "Flip Finder" || mode == "Highest Profit") {
-                        OutlinedTextField(
-                            value = minVolumeInput,
-                            onValueChange = { minVolumeInput = it.filter(Char::isDigit).take(7) },
-                            label = { Text("Min 1h vol") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.width(125.dp)
-                        )
-                    }
+                }
+            }
+            item {
+                Text(
+                    "FILTERS • recent GE midpoint price in GP • traded volume over 1 hour",
+                    color = MParchment, fontSize = 11.sp
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    OutlinedTextField(
+                        value = minPriceInput,
+                        onValueChange = { minPriceInput = it.filter(Char::isDigit).take(12) },
+                        label = { Text("Min price GP") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = maxPriceInput,
+                        onValueChange = { maxPriceInput = it.filter(Char::isDigit).take(12) },
+                        label = { Text("Max price GP") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = minVolumeInput,
+                        onValueChange = { minVolumeInput = it.filter(Char::isDigit).take(10) },
+                        label = { Text("Min 1h trades") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = {
+                            minPriceInput = ""
+                            maxPriceInput = ""
+                            minVolumeInput = ""
+                        }
+                    ) { Text("Clear filters", color = MGold) }
                 }
             }
             item {
@@ -199,20 +239,36 @@ fun GeToolsScreen(nav: NavHostController) {
             } else {
                 val snapshot = state.snapshot!!
                 val minVolume = minVolumeInput.toLongOrNull() ?: 0L
+                val minPrice = minPriceInput.toLongOrNull() ?: 0L
+                val maxPrice = maxPriceInput.toLongOrNull() ?: Long.MAX_VALUE
                 val query = search.trim()
-                val rows = buildMarketRows(snapshot, mode, minVolume)
-                    .filter {
-                        query.isBlank() ||
-                            it.item.name.contains(query, ignoreCase = true) ||
-                            it.item.id.toString() == query
-                    }
-                    .take(100)
+                val invalidRange = minPrice > maxPrice
+                val rows = if (invalidRange) emptyList() else
+                    buildMarketRows(snapshot, mode, minVolume)
+                        .filter { row ->
+                            val midpointPrice = midpoint(snapshot.latest[row.item.id])?.toLong()
+                            val volume = snapshot.hourly[row.item.id]?.volume ?: 0L
+                            (query.isBlank() ||
+                                row.item.name.contains(query, ignoreCase = true) ||
+                                row.item.id.toString() == query) &&
+                                (midpointPrice != null &&
+                                    midpointPrice >= minPrice && midpointPrice <= maxPrice) &&
+                                volume >= minVolume
+                        }
+                        .take(100)
                 item {
                     Text(
-                        mode.uppercase() + " • " + rows.size + " shown",
-                        color = MGold,
+                        if (invalidRange) "Minimum price cannot exceed maximum price."
+                        else mode.uppercase() + " • " + rows.size + " shown",
+                        color = if (invalidRange) MNegative else MGold,
                         fontWeight = FontWeight.Bold
                     )
+                    if (!invalidRange && rows.isEmpty()) {
+                        Text(
+                            "No items match your current price and volume filters.",
+                            color = MParchment, fontSize = 12.sp
+                        )
+                    }
                 }
                 items(rows, key = { mode + "_" + it.item.id }) { row ->
                     MarketRowCard(row) { nav.navigate("market_item/" + row.item.id) }
