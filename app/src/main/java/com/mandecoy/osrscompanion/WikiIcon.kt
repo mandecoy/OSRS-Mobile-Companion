@@ -21,6 +21,17 @@ import java.util.concurrent.ConcurrentHashMap
 
 private val wikiIconCache = ConcurrentHashMap<String, Bitmap>()
 
+// Actual OSRS Cake of guidance item 7542 sprite, distributed by the public
+// osrsbox-db inventory icons repository. Keep this small icon inside the APK:
+// remote Wiki redirect failures must never replace Guides with launcher art.
+private const val GUIDANCE_CAKE_SPRITE = "$encoded"
+private val guidanceCakeBitmap: Bitmap? by lazy {
+    try {
+        val bytes = android.util.Base64.decode(GUIDANCE_CAKE_SPRITE, android.util.Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    } catch (_: Exception) { null }
+}
+
 fun osrsWikiImage(fileName: String): String =
     "https://oldschool.runescape.wiki/w/Special:Redirect/file/" + Uri.encode(fileName)
 
@@ -78,6 +89,17 @@ fun WikiIcon(
     contentDescription: String?,
     size: Dp = 34.dp
 ) {
+    if (url.contains("Cake_of_guidance.png", ignoreCase = true)) {
+        guidanceCakeBitmap?.let { cake ->
+            Image(
+                bitmap = cake.asImageBitmap(),
+                contentDescription = contentDescription ?: "Cake of guidance",
+                modifier = Modifier.size(size),
+                contentScale = ContentScale.Fit
+            )
+            return
+        }
+    }
     val bitmapState = produceState<Bitmap?>(
         initialValue = wikiIconCache[url],
         key1 = url
