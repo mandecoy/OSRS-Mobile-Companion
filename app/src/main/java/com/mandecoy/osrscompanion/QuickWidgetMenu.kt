@@ -58,7 +58,7 @@ data class WidgetOption(
 private val TimerWidgetOptions = listOf(
     WidgetOption("custom", "Custom Timer", "Watch.png", customTimer = true),
     WidgetOption("timers", "Open Timers", "Watch.png", route = "timers"),
-    WidgetOption("reminder_nmz", "Nightmare Zone (NMZ)", "Overload_(4).png", route = "reminder/nmz")
+    WidgetOption("reminder_nmz", "NMZ Herb Boxes", "Herb_box.png", route = "reminder/nmz")
 )
 
 private val ReminderWidgetOptions = listOf(
@@ -66,7 +66,7 @@ private val ReminderWidgetOptions = listOf(
     WidgetOption("reminder_tears", "Tears of Guthix (weekly)", "Tears_of_Guthix.png", route = "reminder/tears"),
     WidgetOption("reminder_zaff", "Zaff battlestaves (daily)", "Battlestaff.png", route = "reminder/zaff"),
     WidgetOption("reminder_misc", "Manage Miscellania (1–7 days)", "Coffer.png", route = "reminder/miscellania"),
-    WidgetOption("reminder_nmz", "Nightmare Zone (NMZ)", "Overload_(4).png", route = "reminder/nmz")
+    WidgetOption("reminder_nmz", "NMZ Herb Boxes", "Herb_box.png", route = "reminder/nmz")
 )
 
 private val FarmWidgetOptions = listOf(
