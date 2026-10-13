@@ -447,6 +447,9 @@ private fun QuickMiniCard(
                 "reminder/miscellania" -> GameReminderStore.setMiscellaniaEnabled(
                     context, !GameReminderStore.miscellaniaEnabled(context)
                 )
+                "reminder/nmz" -> GameReminderStore.setNmzEnabled(
+                    context, !GameReminderStore.nmzEnabled(context)
+                )
                 else -> if (action.seconds != null) {
                     val timer = TimerEntry.create(action.label, action.seconds)
                     TimerStore.add(context, timer)
@@ -471,6 +474,7 @@ private fun QuickMiniCard(
                     "reminder/tears" -> if (GameReminderStore.tearsEnabled(context)) "Tears: ON" else "Tears: OFF"
                     "reminder/zaff" -> if (GameReminderStore.zaffEnabled(context)) "Zaff: ON" else "Zaff: OFF"
                     "reminder/miscellania" -> if (GameReminderStore.miscellaniaEnabled(context)) "Misc: ON" else "Misc: OFF"
+                    "reminder/nmz" -> if (GameReminderStore.nmzEnabled(context)) "NMZ: ON" else "NMZ: OFF"
                     else -> action.label
                 },
                 color = RuneGold,
