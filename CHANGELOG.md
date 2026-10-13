@@ -2,6 +2,30 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.16
+
+### Portfolio, watchlist and GE Tools
+- Add Highest Profit sorting in GE Tools using current after-tax spread and published four-hour GE buy limits.
+- Add 24-hour historical high/low trade-average analysis to watched items, with percentile-based suggested buy and sell prices, tax-adjusted potential profit, liquidity and staleness indicators.
+- Add Min price, Max price (recent GE midpoint in GP) and Min 1-hour trades filters across all GE Tools modes, including a Clear filters action.
+- Historical opportunities are planning estimates only: no trade completion or guaranteed margin is implied.
+
+### Portfolio item search keyboard fix
+- Resize the activity around the Android keyboard and add keyboard-safe insets to the Portfolio list.
+- Automatically scroll the search field into view while typing so results don't sit behind the keyboard.
+- Keep up to 15 item matches inside an independently scrollable bounded panel; selecting an item closes the keyboard.
+
+### Puzzle recognition
+- When uncertain image matching produces odd inversion parity, calculate the least-expensive solvable visual alternative with the blank position unchanged.
+- Explicitly warn that this result is unverified, allow visual comparison and confirmation, and prevent falsely identifying an actual in-game puzzle as intrinsically unsolvable.
+- Add tests for image-parity candidate selection and 24-hour profit calculations.
+
+### Daily item collection notifications
+- Pair Nightmare Zone Herb Boxes with Zaff's battlestaves as separately toggleable daily UTC-reset notifications.
+- NMZ no longer uses short AFK timers. Remove Done buttons from both NMZ and Zaff.
+- Manage Miscellania and Tears of Guthix alone retain Done and Last done tracking. Miscellania reminder settings are unchanged.
+- Rename the NMZ Quick Widget to Herb Boxes.
+
 ## 0.5.15
 
 ### Floating puzzle popup and bubble lifecycle
