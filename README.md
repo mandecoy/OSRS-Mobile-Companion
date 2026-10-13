@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.15**  
+**Current stable version: 0.5.16**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -12,19 +12,22 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Opaque floating timer with eye-toggle sizes: compact 142dp countdown-only strip or medium 192dp panel with Pause/Restart/Stop and expandable Edit controls; Companion bubble also has Show/Hide Timer that preserves countdown
 - From the medium floating timer, edit remaining time ±1 minute / ±10 seconds, choose 1/5/10/15-minute presets, or toggle repeat; switching sizes preserves the live countdown and OSRS focus
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
-- Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
-- Nightmare Zone (NMZ) Done-based reminder with adjustable 5–30-minute repeat intervals, Done now and Last done elapsed; optional pinned widget
-- Manage Miscellania reminder with customizable 1-7-day interval, Done now reset, and live Last done time; Tears of Guthix also tracks actual Done today time
+- Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders at the UTC daily reset
+- Nightmare Zone (NMZ) Herb Box reminder paired with Zaff battlestaves under daily collections; both provide independent daily UTC-reset notifications with no Done buttons
+- Manage Miscellania 1–7-day reminder with Done now and live Last done time; Tears of Guthix weekly reminder also has Done today. These are the only Done controls.
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
 - Farming timer icons show grown trees rather than saplings
 - Farming/run timer presets
 - Four independent Quick Widget slots, with Timers → AFK / Farming / Dailies & Weeklies categories
+- Portfolio watchlist 24h high/low and historical buy/sell targets, after-tax profit estimates and Highest Profit ranking; GE Tools min/max price and min hourly trade volume filtering
+- Portfolio item search keeps up to 15 independently scrollable matches above the soft keyboard and scrolls into view while typing
 - Reorder screen eye icons hide or restore individual Quick Widgets and main tool cards without losing their order or settings
 - Categorized, scrollable Quick Widget menus for Timers, Farm Runs, and Tools
 - Custom timer Quick Widgets
 - Smaller landscape puzzle bubble (188dp maximum picture) with always-visible Previous 5 / Next 5 navigation and top-right X; closing the OSRS companion bubble also dismisses its puzzle and timer popups without resetting a running countdown
 - Guides uses the authentic bundled Cake of guidance item icon even offline
+- Screenshot puzzle solver examines the closest valid sliding-board interpretation when similar tiles would otherwise cause a false unsolvable message; explicit image verification still required
 - Native Puzzle Box screenshot recognition and solving
 - Required screenshot-versus-recognized-board review before any solution is shown
 - Visual puzzle correction: select a square in the original photo, then tap the matching piece in the solved reference; no misleading guessed tile numbers
