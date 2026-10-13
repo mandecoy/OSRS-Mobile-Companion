@@ -573,23 +573,87 @@ fun PortfolioScreen(nav: NavHostController) {
                 }
             }
 
-            item { Text("WATCHLIST", color = MGold, fontWeight = FontWeight.Bold) }
+            item {
+                Text("WATCHLIST • 24H HIGHEST PROFIT", color = MGold, fontWeight = FontWeight.Bold)
+                Text(
+                    "Historical highs/lows are 5-minute average trades, NOT available orders. " +
+                        "Targets use price percentiles, and estimates include GE sales tax. " +
+                        "No fill or profit is guaranteed.",
+                    color = MParchment, fontSize = 11.sp
+                )
+            }
+            item {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = { sortWatchlistByProfit = true },
+                        modifier = Modifier.weight(1f)
+                    ) { Text(if (sortWatchlistByProfit) "✓ Highest Profit" else "Highest Profit", fontSize = 11.sp) }
+                    OutlinedButton(
+                        onClick = { sortWatchlistByProfit = false },
+                        modifier = Modifier.weight(1f)
+                    ) { Text(if (!sortWatchlistByProfit) "✓ Name" else "Name", fontSize = 11.sp) }
+                }
+            }
             if (watchIds.isEmpty()) {
                 item { Text("No watchlist items.", color = MParchment) }
             } else {
+                if (watchInsightsLoading) item {
+                    Text("Loading 24h history for watched items…", color = MParchment)
+                }
+                if (watchIds.size > 12) item {
+                    Text("Only the first 12 watched items are analyzed per refresh to limit API traffic.", color = MParchment, fontSize = 11.sp)
+                }
                 val byId = state.snapshot?.items?.associateBy { it.id } ?: emptyMap()
-                items(watchIds.toList(), key = { "watch_" + it }) { id ->
+                val ranked = if (sortWatchlistByProfit)
+                    watchIds.sortedWith(compareByDescending<Int> {
+                        watchInsights[it]?.estimatedNetAtLimit ?:
+                            watchInsights[it]?.estimatedNetEach ?: Long.MIN_VALUE
+                    }.thenBy { byId[it]?.name ?: "" })
+                    else watchIds.sortedBy { byId[it]?.name ?: "" }
+                items(ranked, key = { "watch_" + it }) { id ->
                     val item = byId[id]
+                    val insight = watchInsights[id]
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { nav.navigate("market_item/" + id) },
-                        colors = CardDefaults.cardColors(containerColor = MStone)
+                        colors = CardDefaults.cardColors(containerColor = MStone),
+                        border = BorderStroke(1.dp, MGoldDark)
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Column(Modifier.fillMaxWidth().padding(11.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(item?.name ?: "Item #" + id, color = MText, fontWeight = FontWeight.Bold)
-                            Text(midpoint(latest[id])?.let { gp(it.toLong()) + " gp" } ?: "—", color = MGold)
+                            if (insight != null) {
+                                Text(
+                                    "24h low " + gp(insight.observedLow24h.toLong()) +
+                                        " • high " + gp(insight.observedHigh24h.toLong()) + " gp",
+                                    color = MParchment
+                                )
+                                Text(
+                                    "Target buy ~" + gp(insight.suggestedBuy.toLong()) +
+                                        " • sell ~" + gp(insight.suggestedSell.toLong()) + " gp",
+                                    color = MText, fontSize = 12.sp
+                                )
+                                Text(
+                                    "Estimated after tax: " + gp(insight.estimatedNetEach) + " gp/item" +
+                                        (insight.estimatedNetAtLimit?.let { " • " + gp(it) + " gp/limit" } ?: ""),
+                                    color = if (insight.estimatedNetEach > 0) MPositive else MNegative,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    insight.confidence + " • 24h volume " + gp(insight.volume24h),
+                                    color = MParchment, fontSize = 11.sp
+                                )
+                            } else {
+                                Text(
+                                    midpoint(latest[id])?.let { "Recent ~" + gp(it.toLong()) + " gp" } ?: "No current price",
+                                    color = MParchment, fontSize = 12.sp
+                                )
+                                Text(
+                                    if (watchInsightsLoading) "Checking historical trades…" else "Not enough 24h trade data for targets.",
+                                    color = MParchment, fontSize = 11.sp
+                                )
+                            }
                         }
                     }
                 }
