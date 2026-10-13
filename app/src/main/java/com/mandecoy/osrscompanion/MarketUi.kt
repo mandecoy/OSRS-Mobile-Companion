@@ -423,6 +423,37 @@ fun PortfolioScreen(nav: NavHostController) {
     val watchIds = remember(revision) { WatchlistStore.ids(context) }
     val alerts = remember(revision) { PriceAlertStore.all(context) }
     var itemSearch by remember { mutableStateOf("") }
+    var sortWatchlistByProfit by remember { mutableStateOf(true) }
+    var watchInsights by remember { mutableStateOf<Map<Int, FlipInsight>>(emptyMap()) }
+    var watchInsightsLoading by remember { mutableStateOf(false) }
+    val marketHandler = remember { Handler(Looper.getMainLooper()) }
+    val watchKey = watchIds.sorted().joinToString(",")
+    LaunchedEffect(watchKey, state.snapshot?.fetchedAt) {
+        val snapshot = state.snapshot
+        if (snapshot == null || watchIds.isEmpty()) {
+            watchInsights = emptyMap()
+            watchInsightsLoading = false
+        } else {
+            watchInsightsLoading = true
+            val requested = watchIds.sorted().take(12)
+            val mapping = snapshot.items.associateBy { it.id }
+            Thread {
+                val result = linkedMapOf<Int, FlipInsight>()
+                for (id in requested) {
+                    try {
+                        val history = MarketApi.loadHistory(id, "5m")
+                        calculate24hFlipInsight(history, mapping[id]?.limit)?.let {
+                            result[id] = it
+                        }
+                    } catch (_: Exception) { /* Keep the watchlist visible without history. */ }
+                }
+                marketHandler.post {
+                    watchInsights = result
+                    watchInsightsLoading = false
+                }
+            }.start()
+        }
+    }
 
     Screen(nav, "Portfolio") { padding ->
         LazyColumn(
