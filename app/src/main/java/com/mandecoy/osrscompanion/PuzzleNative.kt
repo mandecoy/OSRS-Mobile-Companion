@@ -180,6 +180,7 @@ object PuzzleEngine {
         val gap = detectEmptyPosition(cropped)
         var winner: Ref? = null
         var winnerAssignment: IntArray? = null
+        var winnerCosts: Array<DoubleArray>? = null
         var winnerMean = Float.MAX_VALUE
         var winnerX = 0f
         var winnerY = 0f
@@ -207,6 +208,7 @@ object PuzzleEngine {
                 if (mean < winnerMean) {
                     winner = ref
                     winnerAssignment = assignment
+                    winnerCosts = costs
                     winnerMean = mean
                     winnerX = shiftX
                     winnerY = shiftY
@@ -215,15 +217,20 @@ object PuzzleEngine {
         }
 
         val ref = winner ?: return null
-        val board = winnerAssignment ?: return null
+        val rawBoard = winnerAssignment ?: return null
+        val costs = winnerCosts ?: return null
 
-        // RuneLite receives exact tile IDs from the game client; this app
-        // must infer IDs from an image. Never alter the detected tile labels
-        // silently to force solvability: that can produce a perfectly legal
-        // solution for a board that does not exist in OSRS.
-        val recognitionImpossible = !solvable(board)
-        val moves = if (recognitionImpossible) emptyList()
-                    else findSolution(board) ?: emptyList()
+        // Picture tiles can look identical while still representing different
+        // SOLVED locations. The minimum-cost assignment has no parity rule,
+        // so an otherwise perfect-looking photo may appear "unsolvable".
+        // Compare the least costly *solvable* image interpretation as well.
+        // Never auto-verify it: the entire reconstructed board must be checked.
+        val parityAmbiguous = !solvable(rawBoard)
+        val board = if (parityAmbiguous) {
+            PuzzleTileMapping.closestSolvableAlternative(rawBoard, costs) ?: rawBoard
+        } else rawBoard
+        val moves = if (solvable(board)) findSolution(board) ?: emptyList()
+                    else emptyList()
         return PuzzleAnalysis(
             puzzleName = ref.name,
             preview = cropped,
@@ -231,7 +238,7 @@ object PuzzleEngine {
             board = board.copyOf(),
             moves = moves,
             matchDifference = winnerMean,
-            inferredParityRepair = recognitionImpossible,
+            inferredParityRepair = parityAmbiguous,
             matchShiftX = winnerX,
             matchShiftY = winnerY
         )
