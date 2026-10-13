@@ -2,6 +2,22 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.15
+
+### Floating puzzle popup and bubble lifecycle
+- Size the puzzle picture from both available screen width and height, capped at 188dp instead of the original oversized 278dp.
+- Add a conspicuous X close action in the top header and keep Previous 5 and Next 5 buttons on-screen on landscape phones.
+- Constrain dragging to visible screen bounds.
+- Closing the companion OSRS bubble dismisses its menu and puzzle popup and hides any timer panel launched through the bubble, while preserving the timer countdown. Independently launched floating timers and puzzle popups remain independent.
+
+### Guides icon
+- Bundle the actual OSRS Cake of guidance item 7542 inventory artwork locally for the Guides tool card and Quick Widget; do not rely on redirecting to a missing network file or fallback launcher icon.
+
+### Nightmare Zone reminder
+- Add an NMZ enable switch, repeating interval selectable from 5 to 30 minutes, and Done now action.
+- Show elapsed time since NMZ Done now, persisted separately from the reminder scheduling baseline.
+- Add NMZ as a pinnable Quick Widget under Timers / AFK and Dailies / Weeklies.
+
 ## 0.5.14
 
 ### Puzzle correction and recognition
