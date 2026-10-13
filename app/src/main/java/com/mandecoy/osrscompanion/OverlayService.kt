@@ -481,14 +481,8 @@ class FloatingOverlayService : Service() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        val previous = overlayButton("◀ Prev 5") {
-            index = (index - 5).coerceAtLeast(0)
-            redrawPuzzle()
-        }
-        val next = overlayButton("Next 5 ▶") {
-            index = (index + 5).coerceAtMost(solved.moves.size)
-            redrawPuzzle()
-        }
+        val previous = overlayButton("◀ Prev 5") {}
+        val next = overlayButton("Next 5 ▶") {}
         previous.textSize = 12f
         next.textSize = 12f
         actions.addView(previous, LinearLayout.LayoutParams(0, dp(39), 1f).apply {
@@ -514,6 +508,14 @@ class FloatingOverlayService : Service() {
             next.isEnabled = index < solved.moves.size
             next.alpha = if (next.isEnabled) 1f else 0.45f
             PuzzleBubbleStore.setStart(this, index)
+        }
+        previous.setOnClickListener {
+            index = (index - 5).coerceAtLeast(0)
+            redrawPuzzle()
+        }
+        next.setOnClickListener {
+            index = (index + 5).coerceAtMost(solved.moves.size)
+            redrawPuzzle()
         }
 
         // Dragging the title is restricted to visible screen coordinates.
