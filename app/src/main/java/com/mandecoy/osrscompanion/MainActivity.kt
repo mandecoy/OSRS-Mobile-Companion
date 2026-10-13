@@ -926,6 +926,8 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                         !recovered.contentEquals(result.board)
                     recognitionNote = if (recovered != null && correctionMade)
                         "Your saved tile corrections for this exact screenshot were restored. Review them before solving."
+                    else if (display.inferredParityRepair && PuzzleTileMapping.isSolvable(display.board))
+                        "Two similar tiles required a solvable alternative. This is an image-matching candidate, not proof that the solution matches OSRS."
                     else if (PuzzleEngine.hasLearnedArtwork(context, display.puzzleName))
                         "Previously confirmed picture tiles are helping identify this artwork. Please still verify the board."
                     else null
@@ -976,7 +978,7 @@ private fun NativePuzzleScreen(nav: NavHostController) {
             }
 
             analysis?.let { solved ->
-                val recognizedSolvable = !solved.inferredParityRepair &&
+                val recognizedSolvable = PuzzleTileMapping.isSolvable(solved.board) &&
                     (solved.moves.isNotEmpty() || solved.board.indices.all { solved.board[it] == it })
                 if (!boardVerified) {
                     item {
@@ -996,7 +998,10 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                     if (solved.inferredParityRepair) {
                         item {
                             Text(
-                                "Recognition detected an IMPOSSIBLE tile arrangement (odd parity). No moves will be shown. Use Fix ANY tile / EMPTY to correct tile assignments, then recalculate.",
+                                if (recognizedSolvable)
+                                    "TWO SIMILAR TILES WERE AMBIGUOUS. The app found the closest solvable picture arrangement, but it is only a CANDIDATE. Compare EVERY square with your real screenshot. Confirm ONLY when the pictures match; otherwise use the visual editor."
+                                else
+                                    "Tile recognition is uncertain, and no verified move path is available. Correct the picture matching before solving.",
                                 color = Color(0xffffaa80), fontWeight = FontWeight.Bold
                             )
                         }
@@ -1024,8 +1029,9 @@ private fun NativePuzzleScreen(nav: NavHostController) {
                                 fixingGap = false
                                 error = null
                                 PuzzleBubbleStore.save(context.applicationContext, solved, 0)
-                                if (correctionMade) {
+                                if (correctionMade || solved.inferredParityRepair) {
                                     // Never teach the matcher before human confirmation.
+                                    // Include visually confirmed parity-candidate matches.
                                     Thread {
                                         PuzzleEngine.saveWorkingBoard(
                                             context.applicationContext, solved, solved.board
