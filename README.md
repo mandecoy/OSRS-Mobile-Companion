@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.14**  
+**Current stable version: 0.5.15**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -13,6 +13,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - From the medium floating timer, edit remaining time ±1 minute / ±10 seconds, choose 1/5/10/15-minute presets, or toggle repeat; switching sizes preserves the live countdown and OSRS focus
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
 - Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders
+- Nightmare Zone (NMZ) Done-based reminder with adjustable 5–30-minute repeat intervals, Done now and Last done elapsed; optional pinned widget
 - Manage Miscellania reminder with customizable 1-7-day interval, Done now reset, and live Last done time; Tears of Guthix also tracks actual Done today time
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
@@ -22,6 +23,8 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Reorder screen eye icons hide or restore individual Quick Widgets and main tool cards without losing their order or settings
 - Categorized, scrollable Quick Widget menus for Timers, Farm Runs, and Tools
 - Custom timer Quick Widgets
+- Smaller landscape puzzle bubble (188dp maximum picture) with always-visible Previous 5 / Next 5 navigation and top-right X; closing the OSRS companion bubble also dismisses its puzzle and timer popups without resetting a running countdown
+- Guides uses the authentic bundled Cake of guidance item icon even offline
 - Native Puzzle Box screenshot recognition and solving
 - Required screenshot-versus-recognized-board review before any solution is shown
 - Visual puzzle correction: select a square in the original photo, then tap the matching piece in the solved reference; no misleading guessed tile numbers
