@@ -45,6 +45,40 @@ public final class PuzzleTileMapping {
         return swapPositions(input, position, oldPosition);
     }
 
+    /**
+     * Find the lowest extra *image matching cost* solvable alternative when
+     * a screenshot-only assignment accidentally has odd parity. The gap stays
+     * fixed. Never call this a verified board: the player must compare pictures.
+     *
+     * costs[position][solvedTile] is the per-tile picture matching cost.
+     */
+    public static int[] closestSolvableAlternative(int[] board, double[][] costs) {
+        if (!isPermutation(board) || costs == null || costs.length != SIZE)
+            return null;
+        if (isSolvable(board)) return board.clone();
+        double bestIncrease = Double.POSITIVE_INFINITY;
+        int first = -1, second = -1;
+        for (int a = 0; a < SIZE; a++) {
+            if (board[a] == EMPTY || costs[a] == null || costs[a].length != SIZE)
+                continue;
+            for (int b = a + 1; b < SIZE; b++) {
+                if (board[b] == EMPTY || costs[b] == null || costs[b].length != SIZE)
+                    continue;
+                double original = costs[a][board[a]] + costs[b][board[b]];
+                double swapped = costs[a][board[b]] + costs[b][board[a]];
+                double extra = swapped - original;
+                if (Double.isFinite(extra) && extra < bestIncrease) {
+                    bestIncrease = extra;
+                    first = a;
+                    second = b;
+                }
+            }
+        }
+        if (first < 0) return null;
+        int[] candidate = swapPositions(board, first, second);
+        return isSolvable(candidate) ? candidate : null;
+    }
+
     /** For a 5x5 (odd-width) puzzle only inversion parity determines reachability. */
     public static boolean isSolvable(int[] board) {
         if (!isPermutation(board)) return false;
