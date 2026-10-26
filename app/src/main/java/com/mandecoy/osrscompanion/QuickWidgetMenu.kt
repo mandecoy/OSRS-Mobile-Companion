@@ -65,7 +65,7 @@ private val ReminderWidgetOptions = listOf(
     WidgetOption("reminders", "Open Reminders", "Watch.png", route = "timers"),
     WidgetOption("reminder_tears", "Tears of Guthix (weekly)", "Tears_of_Guthix.png", route = "reminder/tears"),
     WidgetOption("reminder_zaff", "Zaff battlestaves (daily)", "Battlestaff.png", route = "reminder/zaff"),
-    WidgetOption("reminder_misc", "Manage Miscellania (1–7 days)", "Coffer.png", route = "reminder/miscellania"),
+    WidgetOption("reminder_misc", "Manage Miscellania (daily)", "Coffer.png", route = "reminder/miscellania"),
     WidgetOption("reminder_nmz", "NMZ Herb Boxes", "Herb_box.png", route = "reminder/nmz")
 )
 
