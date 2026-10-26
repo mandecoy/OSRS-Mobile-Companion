@@ -2,6 +2,15 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.19
+
+### Compact embedded browser toolbar
+- Replace the full-sized application header plus separate Previous/Next row with a single compact 46dp header.
+- Keep a clearly labelled App return action, website back/forward arrows (disabled when unavailable), and an optional eye icon for saved-username controls.
+- Hide the separate webpage description strip and redundant username Hide/Show row to make more room for actual website content.
+- Preserve previous/next browser history navigation, Android back-gesture behavior, saved username and Fill/Copy actions.
+- No changes to Miscellania's restored 1–7 day schedule or existing OSRS timers.
+
 ## 0.5.18
 
 ### Restore Manage Miscellania 1–7-day schedule
