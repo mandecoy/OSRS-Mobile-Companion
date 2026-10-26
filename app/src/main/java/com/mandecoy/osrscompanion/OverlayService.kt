@@ -185,6 +185,7 @@ class FloatingOverlayService : Service() {
         const val ACTION_SWAP_WEB = "osrs.overlay.SWAP_WEB"
         const val ACTION_REFRESH_WEB = "osrs.overlay.REFRESH_WEB"
         const val ACTION_CLOSE_WEB = "osrs.overlay.CLOSE_WEB"
+        const val ACTION_OPEN_FAVORITE = "osrs.overlay.OPEN_FAVORITE"
         private const val CHANNEL = "osrs_floating_tools"
         private const val NOTIFICATION_ID = 5050
     }
@@ -193,7 +194,7 @@ class FloatingOverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var bubbleView: TextView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
-    private var menuView: LinearLayout? = null
+    private var menuView: View? = null
     private lateinit var webWindows: FloatingWebWindows
     private var puzzleView: LinearLayout? = null
     // Only windows launched THROUGH the OSRS bubble are closed with it.
@@ -282,6 +283,13 @@ class FloatingOverlayService : Service() {
             ACTION_OPEN_GE -> {
                 showCompanionBubble()
                 webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+            }
+            ACTION_OPEN_FAVORITE -> {
+                val favorite = WikiFavoriteStore.find(this, intent.getStringExtra("favorite_id") ?: "")
+                if (favorite != null) {
+                    showCompanionBubble()
+                    webWindows.open("favorite_" + favorite.id, favorite.title, favorite.url)
+                }
             }
             ACTION_SWAP_WEB -> webWindows.swapWindows()
             ACTION_REFRESH_WEB -> webWindows.applySettings()
@@ -395,74 +403,121 @@ class FloatingOverlayService : Service() {
         val bubble = bubbleParams ?: return
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setPadding(dp(7), dp(7), dp(7), dp(7))
             background = roundedBackground(0xff25201b.toInt(), 14f)
         }
-        fun menuItem(label: String, action: () -> Unit) {
-            val item = overlayButton(label, action)
-            layout.addView(item, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(44)
-            ).apply { bottomMargin = dp(5) })
+        val header = TextView(this).apply {
+            text = "OSRS MINI DASHBOARD"
+            textSize = 12f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(0xffd7a93f.toInt())
+            gravity = Gravity.CENTER
         }
-        menuItem(
-            if (timerView == null || timerView?.visibility != View.VISIBLE)
-                "Show Timer" else "Hide Timer"
-        ) {
-            val current = timerView
-            if (current == null) {
-                startTimerFromPrefs()
-            } else {
-                // This only changes visibility. Do not remove the overlay
-                // window or stop timerTick: the original countdown continues.
-                current.visibility =
+        layout.addView(header, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, dp(31)
+        ))
+        val entries = listOf<Pair<String, () -> Unit>>(
+            (if (timerView == null || timerView?.visibility != View.VISIBLE)
+                "Show Timer" else "Hide Timer") to {
+                val current = timerView
+                if (current == null) startTimerFromPrefs()
+                else current.visibility =
                     if (current.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+                timerOpenedFromBubble = true
+            },
+            "Edit Timer" to {
+                if (timerView == null) startTimerFromPrefs()
+                timerOpenedFromBubble = true
+                timerView?.visibility = View.VISIBLE
+                showTimerEditor()
+            },
+            "OSRS Wiki" to {
+                webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
+            },
+            "GE Prices" to {
+                webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+            },
+            "Clue Puzzle" to { showPuzzleBubble(fromBubble = true) },
+            "Wiki Favorites" to { showWikiFavoritesMenu() },
+            "Swap Windows" to { webWindows.swapWindows() },
+            "Restart Timer" to { restartTimer() },
+            "Close Web" to { webWindows.closeAll() },
+            "Close Bubble" to { hideCompanionBubble() }
+        )
+        entries.chunked(2).forEach { pair ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
             }
-            timerOpenedFromBubble = true
-            removeViewSafely(menuView)
-            menuView = null
+            pair.forEach { (label, action) ->
+                val button = overlayButton(label) {
+                    removeViewSafely(menuView)
+                    menuView = null
+                    action()
+                }
+                row.addView(button, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                    marginStart = dp(2)
+                    marginEnd = dp(2)
+                })
+            }
+            layout.addView(row, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(47)
+            ))
         }
-        menuItem("Edit Timer") {
-            if (timerView == null) startTimerFromPrefs()
-            timerOpenedFromBubble = true
-            timerView?.visibility = View.VISIBLE
-            showTimerEditor()
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("OSRS Wiki") {
-            webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("GE Prices") {
-            webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("Swap Web Windows") {
-            webWindows.swapWindows()
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("Puzzle Box") {
-            showPuzzleBubble(fromBubble = true)
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("Restart Timer") { restartTimer() }
-        menuItem("Hide Menu") {
-            removeViewSafely(menuView)
-            menuView = null
-        }
-        menuItem("Close Bubble") { hideCompanionBubble() }
 
         val screenW = resources.displayMetrics.widthPixels
         val screenH = resources.displayMetrics.heightPixels
-        val x = (bubble.x + dp(62)).coerceIn(0, (screenW - dp(202)).coerceAtLeast(0))
-        val y = bubble.y.coerceIn(0, (screenH - dp(470)).coerceAtLeast(0))
-        val params = overlayParams(dp(198), WindowManager.LayoutParams.WRAP_CONTENT, x, y)
+        val width = minOf(dp(252), screenW - dp(12))
+        val x = (bubble.x + dp(56)).coerceIn(0, (screenW - width).coerceAtLeast(0))
+        val y = bubble.y.coerceIn(0, (screenH - dp(285)).coerceAtLeast(0))
+        val params = overlayParams(width, WindowManager.LayoutParams.WRAP_CONTENT, x, y)
         menuView = layout
         windowManager.addView(layout, params)
+    }
+
+    private fun showWikiFavoritesMenu() {
+        removeViewSafely(menuView)
+        menuView = null
+        val favorites = WikiFavoriteStore.all(this)
+        if (favorites.isEmpty()) {
+            android.widget.Toast.makeText(
+                this, "Add favorite Wiki widgets from Companion's Wiki Favorites tool",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(7), dp(7), dp(7), dp(7))
+            background = roundedBackground(0xff25201b.toInt(), 14f)
+        }
+        layout.addView(overlayButton("◀ Mini Dashboard") {
+            removeViewSafely(menuView)
+            menuView = null
+            toggleCompanionMenu()
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(38)))
+        favorites.take(8).forEach { fav ->
+            layout.addView(overlayButton("★ " + fav.title.take(25)) {
+                removeViewSafely(menuView)
+                menuView = null
+                webWindows.open("favorite_" + fav.id, fav.title, fav.url)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42)).apply {
+                bottomMargin = dp(3)
+            })
+        }
+        val screenW = resources.displayMetrics.widthPixels
+        val screenH = resources.displayMetrics.heightPixels
+        val maxHeight = minOf(dp(405), screenH - dp(24))
+        val scroll = android.widget.ScrollView(this).apply {
+            addView(layout)
+            background = roundedBackground(0xff25201b.toInt(), 12f)
+        }
+        val bubble = bubbleParams
+        val width = minOf(dp(240), screenW - dp(12))
+        val posX = (bubble?.x ?: dp(15)).coerceIn(0, (screenW - width).coerceAtLeast(0))
+        val posY = (bubble?.y ?: dp(75)).coerceIn(0, (screenH - maxHeight).coerceAtLeast(0))
+        menuView = scroll
+        windowManager.addView(scroll, overlayParams(width, maxHeight, posX, posY))
     }
 
     /**
