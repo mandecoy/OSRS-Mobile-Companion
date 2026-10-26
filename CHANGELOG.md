@@ -2,6 +2,13 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.20
+
+### Fix embedded browser toolbar overlap with the Android status bar
+- Apply Android's status-bar window inset before the 46dp custom browser header, so the App button and browser back/forward arrows are fully visible and tappable beneath the clock/status icons.
+- Keep the toolbar compact. The website gets all remaining screen space and the controls remain in the same row.
+- Preserve the collapsible saved-username controls and webpage history handling; no timer, reminder, or portfolio changes.
+
 ## 0.5.19
 
 ### Compact embedded browser toolbar
