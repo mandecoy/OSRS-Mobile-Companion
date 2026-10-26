@@ -2,6 +2,27 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.6.0
+
+### Floating mini dashboard / Bubble 2.0
+- Replace the tall companion bubble menu with a compact two-column mini dashboard: Timer, Edit, OSRS Wiki, GE Prices, Clue Puzzle, Wiki Favorites, Swap Windows, Restart Timer, Close Web and Close Bubble.
+- Open the actual OSRS Wiki and OSRS Wiki GE Prices websites as floating Android WebView windows over OSRS Mobile.
+- Make each website window draggable by its header and freely resizable with a corner grip. Save separate per-window sizes and positions; fresh dual-window layouts start side by side.
+- Set one or two simultaneous floating webpages in Floating Companion settings. Single-window mode replaces the existing webpage; dual mode supports two independent pages, including saved favorite pages.
+- Minimize and restore each window while preserving the loaded webpage and scroll position. Optionally close immediately instead of minimizing.
+- Add website Back/Forward controls, Swap Windows, and a keyboard toggle. Web browsers do not take OSRS input focus unless the user intentionally enables keyboard mode.
+- Add a 55–100% window opacity slider and saved geometry controls. Keep the main bubble above the webpages so it remains clickable.
+- Closing the companion bubble closes its webpage popups and retains the existing floating timer/puzzle behavior.
+
+### Individual Wiki favorite widgets
+- Add a Wiki Favorites manager: paste a valid Old School RuneScape Wiki HTTPS URL, name it and create an individual homepage widget.
+- Browse the original Wiki page in Companion or open it in a resizable floating window. Pin new favorites directly from the embedded Wiki browser using the star icon.
+- Support favorite widgets in the homepage reorder and visibility editor. Browse up to eight saved pages directly from the bubble's Favorites panel.
+- Favorite links and layouts are saved only on the device; the app never requests a RuneScape password.
+
+### Existing features
+- Keep GE portfolio tools, puzzle and lightbox solvers, Timers, the 1–7-day Miscellania interval and other existing reminders.
+
 ## 0.5.20
 
 ### Fix embedded browser toolbar overlap with the Android status bar
