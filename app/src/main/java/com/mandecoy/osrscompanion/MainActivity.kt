@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -79,6 +80,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -1640,16 +1642,32 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         uploadCallback = null
     }
 
-    Screen(nav, tool.title) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+    // Single 46dp toolbar instead of the old 64dp app bar + separate 48dp
+    // Previous/Next row + 48dp username strip + website subtitle.
+    // This keeps the active website visible on smaller phone screens.
+    Scaffold(
+        containerColor = StoneDark,
+        topBar = {
             Row(
-                modifier = Modifier.fillMaxWidth()
-                    .background(Color(0xff2e2924))
-                    .padding(horizontal = 9.dp, vertical = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().height(46.dp)
+                    .background(Color(0xff171411))
+                    .padding(horizontal = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                OutlinedButton(
+                TextButton(
+                    onClick = { nav.popBackStack() },
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 7.dp)
+                ) {
+                    Text("‹ App", color = TextLight, fontSize = 12.sp)
+                }
+                Text(
+                    tool.title, color = RuneGold, fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
                     onClick = {
                         page?.let { current ->
                             if (current.canGoBack()) current.goBack()
@@ -1657,11 +1675,11 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         }
                     },
                     enabled = canGoWebBack,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Text("◀ Previous page", fontSize = 12.sp)
+                    Text("◀", fontSize = 19.sp, color = if (canGoWebBack) RuneGold else StoneLight)
                 }
-                OutlinedButton(
+                IconButton(
                     onClick = {
                         page?.let { current ->
                             if (current.canGoForward()) current.goForward()
@@ -1669,42 +1687,28 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         }
                     },
                     enabled = canGoWebForward,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    Text("Next page ▶", fontSize = 12.sp)
+                    Text("▶", fontSize = 19.sp, color = if (canGoWebForward) RuneGold else StoneLight)
                 }
-            }
-            if (supportsSavedName) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924))
-                        .padding(start = 12.dp, end = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        if (usernameToolbarVisible) "SAVED OSRS USERNAME"
-                        else "OSRS username controls hidden",
-                        color = RuneGold,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
+                if (supportsSavedName) {
                     IconButton(
                         onClick = {
                             usernameToolbarVisible = !usernameToolbarVisible
                             SavedPlayerName.setToolbarVisible(context, usernameToolbarVisible)
-                        }
+                        },
+                        modifier = Modifier.size(40.dp)
                     ) {
                         EyeVisibilityIcon(usernameToolbarVisible, RuneGold)
                     }
-                    TextButton(
-                        onClick = {
-                            usernameToolbarVisible = !usernameToolbarVisible
-                            SavedPlayerName.setToolbarVisible(context, usernameToolbarVisible)
-                        }
-                    ) {
-                        Text(if (usernameToolbarVisible) "Hide" else "Show", color = RuneGold)
-                    }
                 }
+            }
+        }
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            // Username editing is OPTIONAL and collapses entirely behind the
+            // header eye icon. No second Hide/Show row takes website space.
+            if (supportsSavedName) {
                 if (usernameToolbarVisible) {
                     Row(
                         modifier = Modifier.fillMaxWidth()
@@ -1764,16 +1768,9 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         )
                     }
                 }
-            } else {
-                Text(
-                    tool.subtitle,
-                    color = Parchment,
-                    fontSize = 12.sp,
-                    modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924)).padding(8.dp)
-                )
             }
             AndroidView(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 factory = { context ->
                     WebView(context).apply {
                         settings.javaScriptEnabled = true
