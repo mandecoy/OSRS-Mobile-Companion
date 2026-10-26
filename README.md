@@ -2,13 +2,16 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.20**  
+**Current stable version: 0.6.0**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
 
 - Custom timers with separate minute and second fields
 - Non-focus floating companion overlay that stays above OSRS
+- Compact two-column mini dashboard with Wiki, GE Prices, Clue Puzzle, Timers, Wiki Favorites, Swap Windows and close controls
+- Real Wiki and GE webpages in draggable, corner-resizable floating windows; single/dual window toggle, saved placements, minimize/restore, Back/Forward, safe keyboard-focus toggle and adjustable opacity
+- Paste OSRS Wiki URLs or star a page to create individual homepage Wiki widgets; reorder/hide widgets and open them within Companion or as floating webpages
 - Opaque floating timer with eye-toggle sizes: compact 142dp countdown-only strip or medium 192dp panel with Pause/Restart/Stop and expandable Edit controls; Companion bubble also has Show/Hide Timer that preserves countdown
 - From the medium floating timer, edit remaining time ±1 minute / ±10 seconds, choose 1/5/10/15-minute presets, or toggle repeat; switching sizes preserves the live countdown and OSRS focus
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
