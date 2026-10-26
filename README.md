@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.17**  
+**Current stable version: 0.5.18**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -14,7 +14,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Draggable floating timer with pause, restart, stop, and repeat ON/OFF
 - Toggleable weekly Tears of Guthix and daily Zaff battlestaff reminders at the UTC daily reset
 - Nightmare Zone (NMZ) Herb Box reminder paired with Zaff battlestaves under daily collections; both provide independent daily UTC-reset notifications with no Done buttons
-- Simple on/off automatic reminders: Manage Miscellania notifies every 24 hours after enabling; Tears of Guthix every 7 days after enabling. No Done buttons or interval sliders.
+- Simple on/off automatic reminders: Manage Miscellania has a saved 1–7-day slider (default 1 day), while Tears of Guthix repeats every 7 days after enabling. Neither requires a Done button.
 - Background timer notifications that can fire after the app is closed
 - Timer restoration after reboot
 - Farming timer icons show grown trees rather than saplings
