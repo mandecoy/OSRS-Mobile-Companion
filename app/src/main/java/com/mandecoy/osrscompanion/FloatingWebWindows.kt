@@ -69,15 +69,22 @@ internal class FloatingWebWindows(
         val metrics = context.resources.displayMetrics
         val screenWidth = metrics.widthPixels.coerceAtLeast(dp(240))
         val screenHeight = metrics.heightPixels.coerceAtLeast(dp(240))
-        val defaultWidth = minOf(dp(330), screenWidth - dp(16))
+        // A freshly opened dual-window layout starts side by side rather
+        // than creating two almost-full-width overlapping windows. Players
+        // can expand either pane freely with its corner grip.
+        val dual = FloatingPrefs.dualWebWindows(context)
+        val defaultWidth = if (dual) minOf(dp(255), (screenWidth - dp(20)) / 2)
+                           else minOf(dp(330), screenWidth - dp(16))
         val defaultHeight = minOf(dp(415), screenHeight - dp(90))
         val saved = FloatingPrefs.webWindowGeometry(context, slot)
         val remember = FloatingPrefs.rememberWebPositions(context)
         val width = ((if (remember) saved?.width else null) ?: defaultWidth)
-            .coerceIn(minOf(dp(190), screenWidth - dp(8)), screenWidth - dp(8))
+            .coerceIn(minOf(dp(155), screenWidth - dp(8)), screenWidth - dp(8))
         val height = ((if (remember) saved?.height else null) ?: defaultHeight)
             .coerceIn(minOf(dp(180), screenHeight - dp(8)), screenHeight - dp(8))
-        val x = ((if (remember) saved?.x else null) ?: if (windows.isEmpty()) dp(8) else dp(38))
+        val x = ((if (remember) saved?.x else null) ?:
+            if (windows.isEmpty()) dp(8)
+            else if (dual) screenWidth / 2 else dp(38))
             .coerceIn(0, (screenWidth - width).coerceAtLeast(0))
         val y = ((if (remember) saved?.y else null) ?: if (windows.isEmpty()) dp(72) else dp(112))
             .coerceIn(0, (screenHeight - height).coerceAtLeast(0))
@@ -228,7 +235,7 @@ internal class FloatingWebWindows(
                         val dy = (event.rawY - touchY).toInt()
                         val target = windows[slot] ?: return@setOnTouchListener true
                         if (resize) {
-                            val minW = minOf(dp(190), screenWidth - dp(8))
+                            val minW = minOf(dp(155), screenWidth - dp(8))
                             val minH = minOf(dp(180), screenHeight - dp(8))
                             params.width = (startW + dx).coerceIn(minW, (screenWidth - params.x).coerceAtLeast(minW))
                             params.height = (startH + dy).coerceIn(minH, (screenHeight - params.y).coerceAtLeast(minH))
