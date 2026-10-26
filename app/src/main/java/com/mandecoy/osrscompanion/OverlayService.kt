@@ -40,11 +40,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -118,6 +120,56 @@ object FloatingPrefs {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putInt("bubble_x", x).putInt("bubble_y", y).apply()
     }
+
+    data class WebGeometry(val x: Int, val y: Int, val width: Int, val height: Int)
+
+    fun dualWebWindows(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("web_dual", false)
+    fun setDualWebWindows(context: Context, value: Boolean) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("web_dual", value).apply()
+
+    fun rememberWebPositions(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("web_remember", true)
+    fun setRememberWebPositions(context: Context, value: Boolean) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("web_remember", value).apply()
+
+    fun webMinimizeEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("web_minimize", true)
+    fun setWebMinimizeEnabled(context: Context, value: Boolean) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("web_minimize", value).apply()
+
+    /** Opacity is 55–100%; even translucent overlays consume touches inside their bounds. */
+    fun webOpacity(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("web_opacity", 95)
+            .coerceIn(55, 100)
+    fun setWebOpacity(context: Context, value: Int) =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt("web_opacity", value.coerceIn(55, 100)).apply()
+
+    fun webWindowGeometry(context: Context, slot: String): WebGeometry? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val key = "web_" + slot.take(25).replace(Regex("[^a-zA-Z0-9_]"), "_")
+        if (!prefs.contains(key + "_width")) return null
+        return WebGeometry(
+            prefs.getInt(key + "_x", 0),
+            prefs.getInt(key + "_y", 0),
+            prefs.getInt(key + "_width", 300),
+            prefs.getInt(key + "_height", 360)
+        )
+    }
+
+    fun saveWebWindowGeometry(context: Context, slot: String, rect: WebGeometry) {
+        val key = "web_" + slot.take(25).replace(Regex("[^a-zA-Z0-9_]"), "_")
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(key + "_x", rect.x)
+            .putInt(key + "_y", rect.y)
+            .putInt(key + "_width", rect.width)
+            .putInt(key + "_height", rect.height)
+            .apply()
+    }
 }
 
 class FloatingOverlayService : Service() {
@@ -128,6 +180,11 @@ class FloatingOverlayService : Service() {
         const val ACTION_START_TIMER = "osrs.overlay.START_TIMER"
         const val ACTION_STOP_TIMER = "osrs.overlay.STOP_TIMER"
         const val ACTION_STOP_ALL = "osrs.overlay.STOP_ALL"
+        const val ACTION_OPEN_WIKI = "osrs.overlay.OPEN_WIKI"
+        const val ACTION_OPEN_GE = "osrs.overlay.OPEN_GE"
+        const val ACTION_SWAP_WEB = "osrs.overlay.SWAP_WEB"
+        const val ACTION_REFRESH_WEB = "osrs.overlay.REFRESH_WEB"
+        const val ACTION_CLOSE_WEB = "osrs.overlay.CLOSE_WEB"
         private const val CHANNEL = "osrs_floating_tools"
         private const val NOTIFICATION_ID = 5050
     }
@@ -137,6 +194,7 @@ class FloatingOverlayService : Service() {
     private var bubbleView: TextView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var menuView: LinearLayout? = null
+    private lateinit var webWindows: FloatingWebWindows
     private var puzzleView: LinearLayout? = null
     // Only windows launched THROUGH the OSRS bubble are closed with it.
     // Puzzle windows launched from the in-app solver remain independent.
@@ -187,6 +245,7 @@ class FloatingOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        webWindows = FloatingWebWindows(this, windowManager) { maybeStopService() }
         ensureChannel()
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pending = launchIntent?.let {
@@ -216,6 +275,17 @@ class FloatingOverlayService : Service() {
 
         when (intent?.action) {
             ACTION_SHOW_COMPANION -> showCompanionBubble()
+            ACTION_OPEN_WIKI -> {
+                showCompanionBubble()
+                webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
+            }
+            ACTION_OPEN_GE -> {
+                showCompanionBubble()
+                webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+            }
+            ACTION_SWAP_WEB -> webWindows.swapWindows()
+            ACTION_REFRESH_WEB -> webWindows.applySettings()
+            ACTION_CLOSE_WEB -> webWindows.closeAll()
             ACTION_SHOW_PUZZLE -> showPuzzleBubble(fromBubble = false)
             ACTION_HIDE_COMPANION -> hideCompanionBubble()
             ACTION_START_TIMER -> {
@@ -227,6 +297,7 @@ class FloatingOverlayService : Service() {
                 maybeStopService()
             }
             ACTION_STOP_ALL -> {
+                webWindows.closeAll()
                 stopTimerOverlay()
                 hideCompanionBubble()
                 hidePuzzleBubble()
@@ -241,6 +312,7 @@ class FloatingOverlayService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        webWindows.closeAll()
         removeViewSafely(menuView)
         removeViewSafely(puzzleView)
         removeViewSafely(timerView)
@@ -296,9 +368,9 @@ class FloatingOverlayService : Service() {
     }
 
     private fun hideCompanionBubble() {
-        // Dismiss every popup that this bubble created. Keep running timer
-        // state alive while hiding only its window; showing it again should
-        // reveal the same countdown instead of starting it over.
+        // Closing the bubble also closes web popup windows.
+        // Running timer state stays alive while hiding only the timer panel.
+        webWindows.closeAll()
         removeViewSafely(menuView)
         menuView = null
         if (puzzleOpenedFromBubble) {
@@ -357,6 +429,21 @@ class FloatingOverlayService : Service() {
             removeViewSafely(menuView)
             menuView = null
         }
+        menuItem("OSRS Wiki") {
+            webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
+            removeViewSafely(menuView)
+            menuView = null
+        }
+        menuItem("GE Prices") {
+            webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+            removeViewSafely(menuView)
+            menuView = null
+        }
+        menuItem("Swap Web Windows") {
+            webWindows.swapWindows()
+            removeViewSafely(menuView)
+            menuView = null
+        }
         menuItem("Puzzle Box") {
             showPuzzleBubble(fromBubble = true)
             removeViewSafely(menuView)
@@ -372,7 +459,7 @@ class FloatingOverlayService : Service() {
         val screenW = resources.displayMetrics.widthPixels
         val screenH = resources.displayMetrics.heightPixels
         val x = (bubble.x + dp(62)).coerceIn(0, (screenW - dp(202)).coerceAtLeast(0))
-        val y = bubble.y.coerceIn(0, (screenH - dp(290)).coerceAtLeast(0))
+        val y = bubble.y.coerceIn(0, (screenH - dp(470)).coerceAtLeast(0))
         val params = overlayParams(dp(198), WindowManager.LayoutParams.WRAP_CONTENT, x, y)
         menuView = layout
         windowManager.addView(layout, params)
@@ -956,7 +1043,8 @@ class FloatingOverlayService : Service() {
     }
 
     private fun maybeStopService() {
-        if (bubbleView == null && timerView == null && puzzleView == null) stopSelf()
+        if (bubbleView == null && timerView == null && puzzleView == null &&
+            !webWindows.hasWindows) stopSelf()
     }
 
     private fun overlayButton(label: String, click: () -> Unit): AndroidButton {
@@ -1076,6 +1164,10 @@ fun FloatingToolsScreen(nav: NavHostController) {
     var seconds by remember { mutableStateOf((initial % 60L).toString()) }
     var repeat by remember { mutableStateOf(FloatingPrefs.repeat(context)) }
     var permissionRefresh by remember { mutableStateOf(0) }
+    var dualWeb by remember { mutableStateOf(FloatingPrefs.dualWebWindows(context)) }
+    var rememberWeb by remember { mutableStateOf(FloatingPrefs.rememberWebPositions(context)) }
+    var minimizeWeb by remember { mutableStateOf(FloatingPrefs.webMinimizeEnabled(context)) }
+    var webOpacity by remember { mutableIntStateOf(FloatingPrefs.webOpacity(context)) }
     val hasPermission = remember(permissionRefresh) { Settings.canDrawOverlays(context) }
 
     fun selectedSeconds(): Long {
@@ -1147,6 +1239,89 @@ fun FloatingToolsScreen(nav: NavHostController) {
                         ) {
                             Text(if (hasPermission) "Open overlay setting" else "Enable appear on top")
                         }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FloatStone),
+                    border = BorderStroke(1.dp, FloatGoldDark)
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("FLOATING MINI DASHBOARD", color = FloatGold, fontWeight = FontWeight.Bold)
+                        Text(
+                            "Real Wiki and GE Prices pages, draggable and resizable over OSRS. " +
+                                "Use the corner grip to resize, the top bar to drag, and the keyboard icon to type. " +
+                                "When keyboard mode is off, the overlay does not take game focus.",
+                            color = FloatParchment
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Two web windows", color = FloatText, fontWeight = FontWeight.Bold)
+                                Text("Off: one at a time · On: two side by side", color = FloatParchment)
+                            }
+                            Switch(checked = dualWeb, onCheckedChange = {
+                                dualWeb = it
+                                FloatingPrefs.setDualWebWindows(context, it)
+                                if (hasPermission) ContextCompat.startForegroundService(
+                                    context, Intent(context, FloatingOverlayService::class.java)
+                                        .setAction(FloatingOverlayService.ACTION_REFRESH_WEB)
+                                )
+                            })
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Remember size and position", color = FloatText)
+                                Text("Restore your layouts next time", color = FloatParchment)
+                            }
+                            Switch(checked = rememberWeb, onCheckedChange = {
+                                rememberWeb = it
+                                FloatingPrefs.setRememberWebPositions(context, it)
+                            })
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Minimize instead of closing", color = FloatText)
+                                Text("Keep pages and scroll position loaded", color = FloatParchment)
+                            }
+                            Switch(checked = minimizeWeb, onCheckedChange = {
+                                minimizeWeb = it
+                                FloatingPrefs.setWebMinimizeEnabled(context, it)
+                            })
+                        }
+                        Text("Window opacity: $webOpacity%", color = FloatText)
+                        Slider(
+                            value = webOpacity.toFloat(),
+                            onValueChange = {
+                                webOpacity = it.toInt().coerceIn(55, 100)
+                                FloatingPrefs.setWebOpacity(context, webOpacity)
+                            },
+                            onValueChangeFinished = {
+                                if (hasPermission) ContextCompat.startForegroundService(
+                                    context, Intent(context, FloatingOverlayService::class.java)
+                                        .setAction(FloatingOverlayService.ACTION_REFRESH_WEB)
+                                )
+                            },
+                            valueRange = 55f..100f
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { send(FloatingOverlayService.ACTION_OPEN_WIKI) }
+                            ) { Text("Open Wiki") }
+                            OutlinedButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { send(FloatingOverlayService.ACTION_OPEN_GE) }
+                            ) { Text("Open GE") }
+                        }
+                        OutlinedButton(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { send(FloatingOverlayService.ACTION_SWAP_WEB) }
+                        ) { Text("Swap floating web windows") }
                     }
                 }
             }
