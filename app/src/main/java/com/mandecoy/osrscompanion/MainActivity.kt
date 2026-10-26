@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -1649,8 +1650,14 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         containerColor = StoneDark,
         topBar = {
             Row(
-                modifier = Modifier.fillMaxWidth().height(46.dp)
+                // Android 15/16 uses edge-to-edge windows. A custom Scaffold
+                // topBar does NOT insert the status-bar inset automatically.
+                // Put inset padding OUTSIDE the fixed 46dp clickable row:
+                // this keeps the controls fully below the clock/battery icons.
+                modifier = Modifier.fillMaxWidth()
                     .background(Color(0xff171411))
+                    .statusBarsPadding()
+                    .height(46.dp)
                     .padding(horizontal = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp)
