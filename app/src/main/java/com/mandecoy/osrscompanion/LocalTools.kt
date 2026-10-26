@@ -61,7 +61,7 @@ object ToolOrderStore {
     private const val HIDDEN_QUICK = "hidden_quick_slots"
 
     val defaults = listOf(
-        "timers", "floating", "ge_tools", "high_alch", "portfolio", "fairy_rings", "notepad",
+        "timers", "floating", "wiki_favorites", "ge_tools", "high_alch", "portfolio", "fairy_rings", "notepad",
         "puzzle", "lightbox", "guides", "web/prices", "web/wiki", "web/wise", "web/stars",
         "web/skills", "web/dps", "web/quests", "web/diaries", "web/clues", "web/news",
         "quick", "about"
@@ -70,6 +70,7 @@ object ToolOrderStore {
     private val titles = mapOf(
         "timers" to "Timers",
         "floating" to "Floating Companion",
+        "wiki_favorites" to "Wiki Favorites",
         "ge_tools" to "GE Tools",
         "high_alch" to "High Alch",
         "portfolio" to "Portfolio",
@@ -100,7 +101,8 @@ object ToolOrderStore {
             ?.split("|")
             ?.filter { it.isNotBlank() }
             ?: emptyList()
-        return (saved.filter { it in defaults } + defaults.filterNot { it in saved }).distinct()
+        val routes = defaults + WikiFavoriteStore.all(context).map { "favorite/" + it.id }
+        return (saved.filter { it in routes } + routes.filterNot { it in saved }).distinct()
     }
 
     fun ordered(context: Context, routes: List<String>): List<String> {
@@ -281,7 +283,9 @@ fun LayoutEditorScreen(nav: NavHostController) {
                         key(route) {
                             val index = order.indexOf(route)
                             DraggableOrderCard(
-                                title = ToolOrderStore.title(route),
+                                title = if (route.startsWith("favorite/"))
+                                    WikiFavoriteStore.find(context, route.removePrefix("favorite/"))?.title ?: route
+                                else ToolOrderStore.title(route),
                                 subtitle = null,
                                 visible = route !in hiddenTools,
                                 onToggleVisible = {
