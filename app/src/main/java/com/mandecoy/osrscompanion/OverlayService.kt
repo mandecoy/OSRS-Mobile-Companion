@@ -279,16 +279,19 @@ class FloatingOverlayService : Service() {
             ACTION_OPEN_WIKI -> {
                 showCompanionBubble()
                 webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
+                raiseBubble()
             }
             ACTION_OPEN_GE -> {
                 showCompanionBubble()
                 webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+                raiseBubble()
             }
             ACTION_OPEN_FAVORITE -> {
                 val favorite = WikiFavoriteStore.find(this, intent.getStringExtra("favorite_id") ?: "")
                 if (favorite != null) {
                     showCompanionBubble()
                     webWindows.open("favorite_" + favorite.id, favorite.title, favorite.url)
+                    raiseBubble()
                 }
             }
             ACTION_SWAP_WEB -> {
@@ -360,6 +363,16 @@ class FloatingOverlayService : Service() {
             this.x = x
             this.y = y
         }
+    }
+
+    /** Keep the OSRS bubble tappable above full-size Wiki/GE windows. */
+    private fun raiseBubble() {
+        val view = bubbleView ?: return
+        val params = bubbleParams ?: return
+        try {
+            windowManager.removeView(view)
+            windowManager.addView(view, params)
+        } catch (_: Exception) { }
     }
 
     private fun showCompanionBubble() {
@@ -442,9 +455,11 @@ class FloatingOverlayService : Service() {
             },
             "OSRS Wiki" to {
                 webWindows.open("wiki", "OSRS Wiki", "https://oldschool.runescape.wiki/")
+                raiseBubble()
             },
             "GE Prices" to {
                 webWindows.open("ge", "GE Prices", "https://prices.runescape.wiki/osrs/")
+                raiseBubble()
             },
             "Clue Puzzle" to { showPuzzleBubble(fromBubble = true) },
             "Wiki Favorites" to { showWikiFavoritesMenu() },
@@ -510,6 +525,7 @@ class FloatingOverlayService : Service() {
                 removeViewSafely(menuView)
                 menuView = null
                 webWindows.open("favorite_" + fav.id, fav.title, fav.url)
+                raiseBubble()
             }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(42)).apply {
                 bottomMargin = dp(3)
             })
