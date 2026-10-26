@@ -291,9 +291,18 @@ class FloatingOverlayService : Service() {
                     webWindows.open("favorite_" + favorite.id, favorite.title, favorite.url)
                 }
             }
-            ACTION_SWAP_WEB -> webWindows.swapWindows()
-            ACTION_REFRESH_WEB -> webWindows.applySettings()
-            ACTION_CLOSE_WEB -> webWindows.closeAll()
+            ACTION_SWAP_WEB -> {
+                webWindows.swapWindows()
+                maybeStopService()
+            }
+            ACTION_REFRESH_WEB -> {
+                webWindows.applySettings()
+                maybeStopService()
+            }
+            ACTION_CLOSE_WEB -> {
+                webWindows.closeAll()
+                maybeStopService()
+            }
             ACTION_SHOW_PUZZLE -> showPuzzleBubble(fromBubble = false)
             ACTION_HIDE_COMPANION -> hideCompanionBubble()
             ACTION_START_TIMER -> {
