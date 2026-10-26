@@ -73,13 +73,13 @@ internal class FloatingWebWindows(
         val defaultHeight = minOf(dp(415), screenHeight - dp(90))
         val saved = FloatingPrefs.webWindowGeometry(context, slot)
         val remember = FloatingPrefs.rememberWebPositions(context)
-        val width = (if (remember) saved?.width else null) ?: defaultWidth)
+        val width = ((if (remember) saved?.width else null) ?: defaultWidth)
             .coerceIn(minOf(dp(190), screenWidth - dp(8)), screenWidth - dp(8))
-        val height = (if (remember) saved?.height else null) ?: defaultHeight)
+        val height = ((if (remember) saved?.height else null) ?: defaultHeight)
             .coerceIn(minOf(dp(180), screenHeight - dp(8)), screenHeight - dp(8))
-        val x = (if (remember) saved?.x else null) ?: if (windows.isEmpty()) dp(8) else dp(38))
+        val x = ((if (remember) saved?.x else null) ?: if (windows.isEmpty()) dp(8) else dp(38))
             .coerceIn(0, (screenWidth - width).coerceAtLeast(0))
-        val y = (if (remember) saved?.y else null) ?: if (windows.isEmpty()) dp(72) else dp(112))
+        val y = ((if (remember) saved?.y else null) ?: if (windows.isEmpty()) dp(72) else dp(112))
             .coerceIn(0, (screenHeight - height).coerceAtLeast(0))
 
         val root = LinearLayout(context).apply {
