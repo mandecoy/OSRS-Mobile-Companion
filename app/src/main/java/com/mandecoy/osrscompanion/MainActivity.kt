@@ -19,6 +19,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -142,7 +143,7 @@ private val WebTools = mapOf(
 data class Tool(val title: String, val subtitle: String, val route: String, val icon: String)
 
 private val Tools = listOf(
-    Tool("Timers", "AFK + farming + reminders", "timers", osrsWikiImage("Watch.png")),
+    Tool("Timers", "", "timers", osrsWikiImage("Watch.png")),
     Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Magical_orb.png")),
     Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
@@ -422,8 +423,10 @@ private fun StoneButton(tool: Tool, onClick: () -> Unit) {
         WikiIcon(tool.icon, tool.title, 38.dp)
         Spacer(Modifier.height(4.dp))
         Text(tool.title, color = TextLight, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(3.dp))
-        Text(tool.subtitle, color = Parchment, fontSize = 11.sp, textAlign = TextAlign.Center)
+        if (tool.subtitle.isNotBlank()) {
+            Spacer(Modifier.height(3.dp))
+            Text(tool.subtitle, color = Parchment, fontSize = 11.sp, textAlign = TextAlign.Center)
+        }
     }
 }
 
@@ -1613,6 +1616,23 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
         mutableStateOf(SavedPlayerName.isToolbarVisible(context))
     }
     var page by remember { mutableStateOf<WebView?>(null) }
+    var canGoWebBack by remember { mutableStateOf(false) }
+    var canGoWebForward by remember { mutableStateOf(false) }
+
+    fun syncBrowserHistory(view: WebView?) {
+        canGoWebBack = view?.canGoBack() == true
+        canGoWebForward = view?.canGoForward() == true
+    }
+
+    // Android back gesture goes through webpage history FIRST. The app's
+    // native screen navigation runs only after website history is exhausted.
+    BackHandler(enabled = canGoWebBack && page != null) {
+        page?.let { current ->
+            if (current.canGoBack()) current.goBack()
+            syncBrowserHistory(current)
+        }
+    }
+
     var nameReaderStarted by remember { mutableStateOf(false) }
     var uploadCallback by remember { mutableStateOf<ValueCallback<Array<Uri>>?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -1622,6 +1642,38 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
 
     Screen(nav, tool.title) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .background(Color(0xff2e2924))
+                    .padding(horizontal = 9.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        page?.let { current ->
+                            if (current.canGoBack()) current.goBack()
+                            syncBrowserHistory(current)
+                        }
+                    },
+                    enabled = canGoWebBack,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("◀ Previous page", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    onClick = {
+                        page?.let { current ->
+                            if (current.canGoForward()) current.goForward()
+                            syncBrowserHistory(current)
+                        }
+                    },
+                    enabled = canGoWebForward,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Next page ▶", fontSize = 12.sp)
+                }
+            }
             if (supportsSavedName) {
                 Row(
                     modifier = Modifier.fillMaxWidth().background(Color(0xff2e2924))
@@ -1740,8 +1792,27 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                         }
 
                         webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(
+                                view: WebView?,
+                                url: String?,
+                                favicon: android.graphics.Bitmap?
+                            ) {
+                                super.onPageStarted(view, url, favicon)
+                                syncBrowserHistory(view)
+                            }
+
+                            override fun doUpdateVisitedHistory(
+                                view: WebView?,
+                                url: String?,
+                                isReload: Boolean
+                            ) {
+                                super.doUpdateVisitedHistory(view, url, isReload)
+                                syncBrowserHistory(view)
+                            }
+
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
+                                syncBrowserHistory(view)
                                 if (supportsSavedName && view != null) {
                                     SavedPlayerName.fillRelevantFields(view, url, SavedPlayerName.get(context))
                                     // Some calculator sites render the player field after navigation.
