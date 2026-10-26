@@ -2,6 +2,22 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.17
+
+### Simpler reminder controls
+- Tears of Guthix: one on/off switch; automatically sends a weekly notification every 7 days after activation, and repeats without any Done button.
+- Manage Miscellania: one on/off switch; automatically sends a notification every 24 hours after activation, and repeats without any Done button or interval slider.
+- Enabling a reminder starts its schedule; disabling cancels its alarm. Restarts and reboots preserve the activation date. Upgrades with already-active old reminders safely initialize a new activation date.
+- NMZ herb boxes and Zaff daily-reset reminders remain unchanged.
+
+### Embedded web navigation
+- Add persistent Previous page and Next page buttons to embedded WebViews; disable arrows when there is no history in that direction.
+- Handle Android swipe-back/Back inside browser history before the app navigation stack, so web navigation no longer exits Companion prematurely.
+
+### Timers widget
+- Remove the "AFK + farming + reminders" subtitle from the Timers tool card, displaying just "Timers".
+- Update Quick Widget's Miscellania description to the automatic daily schedule.
+
 ## 0.5.16
 
 ### Portfolio, watchlist and GE Tools
