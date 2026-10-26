@@ -148,6 +148,7 @@ data class Tool(val title: String, val subtitle: String, val route: String, val 
 private val Tools = listOf(
     Tool("Timers", "", "timers", osrsWikiImage("Watch.png")),
     Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Magical_orb.png")),
+    Tool("Wiki Favorites", "Your own Wiki shortcut widgets", "wiki_favorites", osrsWikiImage("Book.png")),
     Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
     Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
@@ -292,6 +293,15 @@ private fun CompanionApp() {
             composable("home") { HomeScreen(nav) }
             composable("timers") { TimersScreen(nav) }
             composable("floating") { FloatingToolsScreen(nav) }
+            composable("wiki_favorites") { WikiFavoritesScreen(nav) }
+            composable("favorite/{id}") { entry ->
+                val favorite = WikiFavoriteStore.find(
+                    nav.context, entry.arguments?.getString("id") ?: ""
+                )
+                if (favorite != null) {
+                    WebToolScreen(nav, WebTool(favorite.title, favorite.url, "Your saved Wiki page"))
+                } else WikiFavoritesScreen(nav)
+            }
             composable("ge_tools") { GeToolsScreen(nav) }
             composable("high_alch") { HighAlchScreen(nav) }
             composable("portfolio") { PortfolioScreen(nav) }
@@ -328,9 +338,19 @@ private fun HomeScreen(nav: NavHostController) {
     val visibleQuick = quick.withIndex()
         .filter { (index, _) -> ToolOrderStore.isQuickVisible(context, index + 1) }
         .map { it.value }
-    val orderedTools = ToolOrderStore.ordered(context, Tools.map { it.route })
+    // Saved Wiki pages each become independent reorderable homepage cards.
+    val wikiWidgets = WikiFavoriteStore.all(context).map { favorite ->
+        Tool(
+            favorite.title,
+            "Wiki favorite",
+            "favorite/" + favorite.id,
+            osrsWikiImage("Book.png")
+        )
+    }
+    val allTools = Tools + wikiWidgets
+    val orderedTools = ToolOrderStore.ordered(context, allTools.map { it.route })
         .filter { ToolOrderStore.isToolVisible(context, it) }
-        .mapNotNull { route -> Tools.firstOrNull { it.route == route } }
+        .mapNotNull { route -> allTools.firstOrNull { it.route == route } }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -1697,6 +1717,24 @@ private fun WebToolScreen(nav: NavHostController, tool: WebTool) {
                     modifier = Modifier.size(40.dp)
                 ) {
                     Text("▶", fontSize = 19.sp, color = if (canGoWebForward) RuneGold else StoneLight)
+                }
+                if (WikiFavoriteStore.isWikiUrl(tool.url)) {
+                    IconButton(
+                        onClick = {
+                            val currentUrl = page?.url ?: tool.url
+                            val currentTitle = page?.title?.takeIf { it.isNotBlank() } ?: tool.title
+                            val saved = WikiFavoriteStore.add(context, currentTitle, currentUrl)
+                            android.widget.Toast.makeText(
+                                context,
+                                if (saved == null) "Open an OSRS Wiki page to save it"
+                                else "Added Wiki widget: " + saved.title,
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Text("☆", fontSize = 23.sp, color = RuneGold)
+                    }
                 }
                 if (supportsSavedName) {
                     IconButton(
