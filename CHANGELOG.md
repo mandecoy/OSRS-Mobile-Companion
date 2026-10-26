@@ -2,6 +2,15 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.5.18
+
+### Restore Manage Miscellania 1–7-day schedule
+- Restore the selectable 1–7-day interval slider without bringing back the Done now button.
+- Keep the convenient on/off switch. The selected period persists across restarts and uses the original preference key, so previous settings from pre-0.5.17 versions are preserved.
+- Changing the interval reschedules reminders immediately if enabled; activation remains the schedule anchor.
+- Quick Widget labels once again identify Miscellania as a 1–7-day reminder.
+- Leave the Tears of Guthix weekly on/off reminder, website Previous/Next arrows, and the streamlined Timers card unchanged.
+
 ## 0.5.17
 
 ### Simpler reminder controls
