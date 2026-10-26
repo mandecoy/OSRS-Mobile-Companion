@@ -2,7 +2,7 @@
 
 A free, open-source Android companion app built for Old School RuneScape Mobile.
 
-**Current stable version: 0.5.18**  
+**Current stable version: 0.5.19**  
 **Android requirement: Android 8.0 (API 26) or newer**
 
 ## Features
@@ -21,7 +21,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 - Farming/run timer presets
 - Four independent Quick Widget slots, with Timers → AFK / Farming / Dailies & Weeklies categories
 - Timers main card shows just the name without the old AFK + farming subtitle
-- Embedded websites include Previous page and Next page navigation arrows, and the Android back gesture navigates website history before returning to Companion
+- Embedded websites use a compact single-row 46dp toolbar: return to app, previous/next page arrows, and an eye icon that expands saved-username controls only when needed; Android back navigates website history before returning to Companion
 - Portfolio watchlist 24h high/low and historical buy/sell targets, after-tax profit estimates and Highest Profit ranking; GE Tools min/max price and min hourly trade volume filtering
 - Portfolio item search keeps up to 15 independently scrollable matches above the soft keyboard and scrolls into view while typing
 - Reorder screen eye icons hide or restore individual Quick Widgets and main tool cards without losing their order or settings
