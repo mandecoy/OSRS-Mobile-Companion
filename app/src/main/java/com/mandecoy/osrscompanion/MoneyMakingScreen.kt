@@ -768,8 +768,11 @@ private fun MoneyShopRow(entry: MoneyShopEvaluation) {
                 Text(entry.row.item, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text("Stock ${entry.row.stock} · Restock ${entry.row.restock}",
                     color = MoneyParchment, fontSize = 10.sp)
-                Text("Shop: ${entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown"} · " +
-                    "GE sell: ${entry.geSellPrice?.let { gp(it.toLong()) } ?: "unknown"}",
+                val specialCurrency = entry.flags.any { it.startsWith("Special currency") }
+                Text((if (specialCurrency) "Shop (non-GP currency): " else "Shop (GP): ") +
+                    (entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown") +
+                    (if (specialCurrency) "" else " · GE sell: " +
+                        (entry.geSellPrice?.let { gp(it.toLong()) } ?: "unknown")),
                     color = MoneyParchment, fontSize = 11.sp)
                 if (entry.flags.isNotEmpty()) Text(entry.flags.joinToString(" · "),
                     color = MoneyParchment, fontSize = 10.sp)
