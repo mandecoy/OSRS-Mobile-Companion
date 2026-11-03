@@ -299,7 +299,8 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                 "Jewellery" -> "Crafting, enchanting and complete chains"
                                 "Teleport Tablets" -> "Rune costs and tablet margins"
                                 "Magic Processing" -> "Tan Leather, Plank Make and spells"
-                                else -> "Unfinished potions, grinding, keys and more"
+                                "Other Processing" -> "Unfinished potions, grinding, keys and more"
+                                else -> "Bloodwood sap and seeking arrow profit margins"
                             }, when (selected) {
                                 "Jewellery" -> "Gold_ring.png"
                                 "Teleport Tablets" -> "Varrock_teleport.png"
