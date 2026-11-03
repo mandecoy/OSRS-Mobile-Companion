@@ -65,6 +65,7 @@ fun iconUrlForAction(action: QuickAction): String {
         "puzzle", "web/puzzle" -> osrsWikiImage("Puzzle_box_zulrah.png")
         "lightbox", "web/light" -> osrsWikiImage("Light_box.png")
         "ge_tools" -> osrsWikiImage("Grand_Exchange_Clerk.png")
+        "money_making" -> osrsWikiImage("Coins_10000.png")
         "portfolio" -> osrsWikiImage("Platinum_token.png")
         "notepad" -> osrsWikiImage("Spell_scroll.png")
         "web/prices" -> osrsWikiImage("Coins_10000.png")

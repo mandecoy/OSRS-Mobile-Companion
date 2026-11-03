@@ -150,6 +150,7 @@ private val Tools = listOf(
     Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Magical_orb.png")),
     Tool("Wiki Favorites", "Your own Wiki shortcut widgets", "wiki_favorites", osrsWikiImage("Book.png")),
     Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
+    Tool("Money Making", "Shops, live profits + processing", "money_making", osrsWikiImage("Coins_10000.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
     Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
     Tool("Fairy Rings", "Code + location directory", "fairy_rings", osrsWikiImage("Fairy_ring.png")),
@@ -182,6 +183,7 @@ private val QuickChoices = listOf(
     QuickAction("timers", "Timers", osrsWikiImage("Watch.png"), route = "timers"),
     QuickAction("floating", "Floating Companion", osrsWikiImage("Magical_orb.png"), route = "floating"),
     QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_Clerk.png"), route = "ge_tools"),
+    QuickAction("money_making", "Money Making", osrsWikiImage("Coins_10000.png"), route = "money_making"),
     QuickAction("high_alch", "High Alch", osrsWikiImage("High_Level_Alchemy.png"), route = "high_alch"),
     QuickAction("portfolio", "Portfolio", osrsWikiImage("Platinum_token.png"), route = "portfolio"),
     QuickAction("fairy_rings", "Fairy Rings", osrsWikiImage("Fairy_ring.png"), route = "fairy_rings"),
@@ -303,6 +305,7 @@ private fun CompanionApp() {
                 } else WikiFavoritesScreen(nav)
             }
             composable("ge_tools") { GeToolsScreen(nav) }
+            composable("money_making") { MoneyMakingScreen(nav) }
             composable("high_alch") { HighAlchScreen(nav) }
             composable("portfolio") { PortfolioScreen(nav) }
             composable("fairy_rings") { FairyRingDirectoryScreen(nav) }

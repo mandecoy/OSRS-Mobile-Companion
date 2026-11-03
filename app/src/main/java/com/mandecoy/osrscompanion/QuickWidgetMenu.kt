@@ -91,6 +91,7 @@ private val FarmWidgetOptions = listOf(
 private val ToolWidgetOptions = listOf(
     WidgetOption("floating", "Floating Companion", "Magical_orb.png", route = "floating"),
     WidgetOption("ge_tools", "GE Tools", "Grand_Exchange_Clerk.png", route = "ge_tools"),
+    WidgetOption("money_making", "Money Making", "Coins_10000.png", route = "money_making"),
     WidgetOption("high_alch", "High Alch", "High_Level_Alchemy.png", route = "high_alch"),
     WidgetOption("portfolio", "Portfolio", "Platinum_token.png", route = "portfolio"),
     WidgetOption("fairy_rings", "Fairy Rings", "Fairy_ring.png", route = "fairy_rings"),

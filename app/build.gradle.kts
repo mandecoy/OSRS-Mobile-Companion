@@ -22,8 +22,8 @@ android {
         applicationId = "com.mandecoy.osrscompanion"
         minSdk = 26
         targetSdk = 35
-        versionCode = 32
-        versionName = "0.6.1"
+        versionCode = 33
+        versionName = "0.7.0"
     }
 
     signingConfigs {
@@ -72,6 +72,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.browser:browser:1.8.0")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("org.jsoup:jsoup:1.18.3")
 
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
