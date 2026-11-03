@@ -2,6 +2,25 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.0
+
+### Native Money Making hub
+- Add one reorderable Money Making homepage widget and an optional quick-widget shortcut.
+- Browse Wiki money-making guides from Processing, Skilling, Collecting, Combat, Recurring and Free-to-play in a fully native Android interface.
+- Add a paginated OSRS Wiki shops directory with in-app shop inventory views; show listed shop stock and base purchase prices beside up-to-date GE prices and after-tax unit margins.
+- Add a GE price-calculated recipe library for jewellery crafting, enchanting and complete chains; common teleport tablets; Tan Leather; Plank Make; unfinished potions; crushing, grinding, crystal keys, ultracompost; and seeking arrows made with bloodwood sap.
+- Include a method leaderboard, Hidden Gems, skill/requirements descriptions, search, capital filter, saved methods, and prices refreshed on demand.
+- Use recent GE high-trade prices for inputs and low-trade prices for outputs, account for sale tax, and flag stale prices, missing quotes, and low or unknown volume.
+- Keep method descriptions and source figures inside the app. Optional Wiki reference links remain available.
+
+### Important accuracy and coverage notes
+- This initial recipe calculator library covers selected verified method families, not all possible OSRS crafting/processing recipes; the Wiki guide directory is broader.
+- Shop quantities and base prices come from Wiki documentation, not live per-world in-game stock. Unit margins cannot be multiplied by all stock to guarantee profit, because shop prices change with stock.
+- Wiki GP/hour rates are estimates, not automatically recalculated live. Some recipe hourly rates use explicitly labeled estimated processing speeds.
+- Bloodwood sap is untradeable; seeking-arrow calculators report material margin only and do not claim to know achievable GP/hour.
+- Wiki HTML templates can change; unrecognized shops or missing GE prices show unavailable rather than fabricated profit.
+- All prior timers, overlays, puzzles, GE tools, and layouts remain available.
+
 ## 0.6.1
 
 ### Choose notification time for recurring reminders
