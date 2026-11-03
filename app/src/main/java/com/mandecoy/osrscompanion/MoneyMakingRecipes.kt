@@ -186,12 +186,20 @@ object MoneyRecipeCatalog {
 }
 
 object MoneyProfitCalculator {
+    private val normalize = Regex("[^a-z0-9]")
     private fun nameKey(name: String): String = name.lowercase(Locale.ROOT)
-        .replace(Regex("[^a-z0-9]"), "")
+        .replace(normalize, "")
 
-    fun lookup(snapshot: MarketSnapshot, name: String): MarketItem? {
-        val key = nameKey(name)
-        return snapshot.items.firstOrNull { nameKey(it.name) == key }
+    // Build this once per refreshed snapshot. A linear scan of the full GE
+    // mapping for each input would block the Compose UI during ranking.
+    private var indexedSnapshot: MarketSnapshot? = null
+    private var indexedItems: Map<String, MarketItem> = emptyMap()
+    fun lookup(snapshot: MarketSnapshot, name: String): MarketItem? = synchronized(this) {
+        if (indexedSnapshot !== snapshot) {
+            indexedItems = snapshot.items.associateBy { nameKey(it.name) }
+            indexedSnapshot = snapshot
+        }
+        indexedItems[nameKey(name)]
     }
 
     /**
