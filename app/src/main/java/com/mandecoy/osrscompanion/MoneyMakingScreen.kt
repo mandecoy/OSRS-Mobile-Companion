@@ -499,7 +499,10 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             MoneyNotice("No standard GP-denominated stock table was detected. " +
                                 "This may be a specialty shop, a directory page, or a changed Wiki template.")
                         }
-                        items(evals.sortedWith(compareByDescending<MoneyShopEvaluation> { it.netUnitProfit ?: Long.MIN_VALUE }),
+                        items(evals.sortedWith(compareByDescending<MoneyShopEvaluation> {
+                            if (ShopRankings.isBuyableStock(it.row.stock)) it.netUnitProfit ?: Long.MIN_VALUE
+                            else Long.MIN_VALUE
+                        }),
                             key = { "stock" + it.row.item }) { value -> MoneyShopRow(value) }
                         item {
                             OutlinedButton(onClick = { save("shop|" + detail.title) }) {
