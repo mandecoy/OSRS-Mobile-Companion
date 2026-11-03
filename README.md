@@ -8,6 +8,7 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 ## Features
 
 - Native Money Making hub: searchable Wiki guide rankings, shop directory and inventories, GE-based profit calculators for jewellery, tablets, leather tanning, planks, unfinished potions, bloodwood seeking arrows and other processing.
+- Shop Profits automatically ranks shops by the strongest after-tax GP/item opportunity and shows the standout item; shops with multiple profitable products highlight additional opportunities. A daily indexed Wiki catalog avoids hundreds of mobile-page requests.
 - Unit-profit and selected GP/hour estimates, flagged stale/low-volume quotes, capital filters and saved methods. Wiki GP/hour figures are marked as estimates, and NPC stock is not available live by world.
 - Each method, recipe and shop is viewed inside Companion; Wiki source links are optional references.
 
