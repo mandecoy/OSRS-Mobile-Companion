@@ -2,6 +2,7 @@ package com.mandecoy.osrscompanion
 
 import android.app.AlarmManager
 import android.app.PendingIntent
+import android.app.TimePickerDialog
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -22,12 +24,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
@@ -42,6 +48,44 @@ object GameReminderStore {
     private const val MISC_STARTED_AT = "misc_reminder_enabled_at"
     private const val MISC_INTERVAL_DAYS = "misc_interval_days"
     private const val NMZ_ENABLED = "nmz_enabled"
+    private const val TEARS_HOUR = "tears_notification_hour"
+    private const val TEARS_MINUTE = "tears_notification_minute"
+    private const val MISC_HOUR = "misc_notification_hour"
+    private const val MISC_MINUTE = "misc_notification_minute"
+
+    /**
+     * Preserve the old local hour/minute for existing enabled reminders.
+     * New reminders default to 9 AM until the user picks a time.
+     */
+    private fun reminderTime(context: Context, hourKey: String, minuteKey: String, startKey: String): LocalTime {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val hour = prefs.getInt(hourKey, -1)
+        val minute = prefs.getInt(minuteKey, -1)
+        if (hour in 0..23 && minute in 0..59) return LocalTime.of(hour, minute)
+        val startedAt = prefs.getLong(startKey, 0L)
+        return if (startedAt > 0L) {
+            Instant.ofEpochMilli(startedAt).atZone(ZoneId.systemDefault())
+                .toLocalTime().withSecond(0).withNano(0)
+        } else LocalTime.of(9, 0)
+    }
+
+    fun tearsReminderTime(context: Context): LocalTime =
+        reminderTime(context, TEARS_HOUR, TEARS_MINUTE, TEARS_STARTED_AT)
+
+    fun miscellaniaReminderTime(context: Context): LocalTime =
+        reminderTime(context, MISC_HOUR, MISC_MINUTE, MISC_STARTED_AT)
+
+    fun setTearsReminderTime(context: Context, time: LocalTime) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(TEARS_HOUR, time.hour).putInt(TEARS_MINUTE, time.minute).apply()
+        if (tearsEnabled(context)) GameReminderScheduler.scheduleTears(context)
+    }
+
+    fun setMiscellaniaReminderTime(context: Context, time: LocalTime) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putInt(MISC_HOUR, time.hour).putInt(MISC_MINUTE, time.minute).apply()
+        if (miscellaniaEnabled(context)) GameReminderScheduler.scheduleMiscellania(context)
+    }
 
     fun tearsEnabled(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -135,6 +179,34 @@ object GameReminderStore {
     }
 }
 
+/**
+ * Calendar-day recurrence keeps the chosen local wall-clock time even when
+ * daylight-saving time changes; fixed 24-hour durations would drift.
+ */
+internal object LocalReminderSchedule {
+    fun nextTriggerMillis(
+        startedAtMillis: Long,
+        intervalDays: Int,
+        time: LocalTime,
+        nowMillis: Long,
+        zone: ZoneId
+    ): Long {
+        require(intervalDays in 1..7)
+        val today = Instant.ofEpochMilli(nowMillis).atZone(zone).toLocalDate()
+        val firstDate = Instant.ofEpochMilli(startedAtMillis).atZone(zone)
+            .toLocalDate().plusDays(intervalDays.toLong())
+        val daysSinceFirst = ChronoUnit.DAYS.between(firstDate, today)
+        val completedPeriods = (daysSinceFirst / intervalDays).coerceAtLeast(0L)
+        var date = firstDate.plusDays(completedPeriods * intervalDays)
+        var candidate = date.atTime(time).atZone(zone).toInstant()
+        if (!candidate.isAfter(Instant.ofEpochMilli(nowMillis))) {
+            date = date.plusDays(intervalDays.toLong())
+            candidate = date.atTime(time).atZone(zone).toInstant()
+        }
+        return candidate.toEpochMilli()
+    }
+}
+
 object GameReminderScheduler {
     private const val TEARS_REQUEST = 7301
     private const val ZAFF_REQUEST = 7302
@@ -153,11 +225,11 @@ object GameReminderScheduler {
     }
 
     fun scheduleTears(context: Context) {
-        // Weekly cycle measured from the time the toggle was enabled.
-        // Never rely on old Done timestamps or require a separate check-in.
+        // Seven calendar days after activation, at the selected local time.
         scheduleFromStart(
             context, TEARS_REQUEST, TYPE_TEARS,
-            GameReminderStore.tearsStartedAt(context), 7L * 24L * 60L * 60L * 1000L
+            GameReminderStore.tearsStartedAt(context), 7,
+            GameReminderStore.tearsReminderTime(context)
         )
     }
 
@@ -169,12 +241,12 @@ object GameReminderScheduler {
     }
 
     fun scheduleMiscellania(context: Context) {
-        // Custom 1–7-day reminder repeating from activation, with no
-        // separate Done step. Keeps any previously saved interval.
+        // Preserve the 1–7-day interval and activation-date anchor.
         scheduleFromStart(
             context, MISC_REQUEST, TYPE_MISC,
             GameReminderStore.miscellaniaStartedAt(context),
-            GameReminderStore.miscellaniaIntervalDays(context) * 24L * 60L * 60L * 1000L
+            GameReminderStore.miscellaniaIntervalDays(context),
+            GameReminderStore.miscellaniaReminderTime(context)
         )
     }
 
@@ -183,12 +255,12 @@ object GameReminderScheduler {
         request: Int,
         type: String,
         startedAt: Long,
-        intervalMs: Long
+        intervalDays: Int,
+        time: LocalTime
     ) {
-        val now = System.currentTimeMillis()
-        val elapsed = (now - startedAt).coerceAtLeast(0L)
-        val cycles = elapsed / intervalMs + 1L
-        val next = startedAt + cycles * intervalMs
+        val next = LocalReminderSchedule.nextTriggerMillis(
+            startedAt, intervalDays, time, System.currentTimeMillis(), ZoneId.systemDefault()
+        )
         schedule(context, request, type, next)
     }
 
@@ -281,6 +353,8 @@ class GameReminderReceiver : BroadcastReceiver() {
 @Composable
 fun GameRemindersCard(context: Context) {
     var tearsEnabled by remember { mutableStateOf(GameReminderStore.tearsEnabled(context)) }
+    var tearsTime by remember { mutableStateOf(GameReminderStore.tearsReminderTime(context)) }
+    var miscellaniaTime by remember { mutableStateOf(GameReminderStore.miscellaniaReminderTime(context)) }
     var zaffEnabled by remember { mutableStateOf(GameReminderStore.zaffEnabled(context)) }
     var miscellaniaEnabled by remember { mutableStateOf(GameReminderStore.miscellaniaEnabled(context)) }
     var miscellaniaDays by remember { mutableIntStateOf(GameReminderStore.miscellaniaIntervalDays(context)) }
@@ -307,7 +381,7 @@ fun GameRemindersCard(context: Context) {
                 Column(Modifier.weight(1f)) {
                     Text("Tears of Guthix", color = Color(0xfff4ead4), fontWeight = FontWeight.Bold)
                     Text(
-                        "Weekly reminder automatically repeats every 7 days while ON.",
+                        "Weekly reminder repeats every 7 days at your chosen time while ON.",
                         color = Color(0xffd7c7a4),
                         fontSize = 11.sp
                     )
@@ -319,6 +393,11 @@ fun GameRemindersCard(context: Context) {
                         GameReminderStore.setTearsEnabled(context, it)
                     }
                 )
+            }
+
+            ReminderTimeInput(context, "Tears reminder time", tearsTime) {
+                tearsTime = it
+                GameReminderStore.setTearsReminderTime(context, it)
             }
 
             Text(
@@ -394,6 +473,10 @@ fun GameRemindersCard(context: Context) {
                     }
                 )
             }
+            ReminderTimeInput(context, "Miscellania reminder time", miscellaniaTime) {
+                miscellaniaTime = it
+                GameReminderStore.setMiscellaniaReminderTime(context, it)
+            }
             Text(
                 "Manage Miscellania interval: " + miscellaniaDays +
                     (if (miscellaniaDays == 1) " day" else " days"),
@@ -420,6 +503,41 @@ fun GameRemindersCard(context: Context) {
                 Text("1 day", color = Color(0xffd7c7a4), fontSize = 11.sp)
                 Text("7 days", color = Color(0xffd7c7a4), fontSize = 11.sp)
             }
+        }
+    }
+}
+
+
+/** Tap the time field to open the phone's AM/PM or 24-hour time picker. */
+@Composable
+private fun ReminderTimeInput(
+    context: Context,
+    label: String,
+    time: LocalTime,
+    onTimeSelected: (LocalTime) -> Unit
+) {
+    val is24Hour = android.text.format.DateFormat.is24HourFormat(context)
+    val formatter = remember(is24Hour) {
+        DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a")
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = Color(0xffd7c7a4), fontSize = 12.sp, modifier = Modifier.weight(1f))
+        OutlinedButton(
+            onClick = {
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute -> onTimeSelected(LocalTime.of(hour, minute)) },
+                    time.hour,
+                    time.minute,
+                    is24Hour
+                ).show()
+            }
+        ) {
+            Text(time.format(formatter))
         }
     }
 }

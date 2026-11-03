@@ -179,6 +179,12 @@ class BootReceiver : BroadcastReceiver() {
         ) {
             TimerStore.active(context).forEach { TimerScheduler.schedule(context, it) }
             GameReminderScheduler.restore(context)
+        } else if (
+            intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
+            intent.action == Intent.ACTION_TIME_CHANGED
+        ) {
+            // Honor the user's chosen local time after a time-zone/clock change.
+            GameReminderScheduler.restore(context)
         }
     }
 }
