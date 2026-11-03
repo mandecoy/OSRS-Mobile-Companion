@@ -2,6 +2,15 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.6.1
+
+### Choose notification time for recurring reminders
+- Add a selectable time-of-day field under Tears of Guthix and Manage Miscellania in the Timers screen. Use the device's AM/PM or 24-hour time picker.
+- Keep separate, locally saved notification times for each reminder; changes take effect immediately while enabled.
+- Tears continues to repeat every seven days, anchored to the day it was enabled. Miscellania retains its existing 1–7-day interval slider and on/off switch, without a Done button.
+- Preserve the previous notification hour on upgrades until a custom time is chosen; new reminders default to 9:00 AM.
+- Schedule on local calendar dates to keep the chosen clock time across daylight-saving changes. Reschedule after reboot, time changes, or time-zone changes.
+
 ## 0.6.0
 
 ### Floating mini dashboard / Bubble 2.0
