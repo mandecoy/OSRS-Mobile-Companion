@@ -61,7 +61,7 @@ object ToolOrderStore {
     private const val HIDDEN_QUICK = "hidden_quick_slots"
 
     val defaults = listOf(
-        "timers", "floating", "wiki_favorites", "ge_tools", "high_alch", "portfolio", "fairy_rings", "notepad",
+        "timers", "floating", "wiki_favorites", "ge_tools", "money_making", "high_alch", "portfolio", "fairy_rings", "notepad",
         "puzzle", "lightbox", "guides", "web/prices", "web/wiki", "web/wise", "web/stars",
         "web/skills", "web/dps", "web/quests", "web/diaries", "web/clues", "web/news",
         "quick", "about"
