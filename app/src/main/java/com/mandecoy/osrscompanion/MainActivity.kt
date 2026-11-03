@@ -183,6 +183,7 @@ private val QuickChoices = listOf(
     QuickAction("timers", "Timers", osrsWikiImage("Watch.png"), route = "timers"),
     QuickAction("floating", "Floating Companion", osrsWikiImage("Magical_orb.png"), route = "floating"),
     QuickAction("ge_tools", "GE Tools", osrsWikiImage("Grand_Exchange_Clerk.png"), route = "ge_tools"),
+    QuickAction("money_making", "Money Making", osrsWikiImage("Coins_10000.png"), route = "money_making"),
     QuickAction("high_alch", "High Alch", osrsWikiImage("High_Level_Alchemy.png"), route = "high_alch"),
     QuickAction("portfolio", "Portfolio", osrsWikiImage("Platinum_token.png"), route = "portfolio"),
     QuickAction("fairy_rings", "Fairy Rings", osrsWikiImage("Fairy_ring.png"), route = "fairy_rings"),
