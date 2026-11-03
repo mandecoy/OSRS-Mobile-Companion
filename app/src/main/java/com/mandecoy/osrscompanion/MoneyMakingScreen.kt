@@ -99,6 +99,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     var catalogRevision by remember { mutableIntStateOf(-1) }
     var methodLoading by remember { mutableStateOf(true) }
     var shopLoading by remember { mutableStateOf(false) }
+    var showAllShopDirectory by remember { mutableStateOf(false) }
     var detailLoading by remember { mutableStateOf(false) }
     var wikiError by remember { mutableStateOf("") }
     var shopError by remember { mutableStateOf("") }
@@ -409,8 +410,15 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     item { MoneyNotice(
                         "Shops are ranked by the NET GP profit of their single standout item, " +
                         "not by how many items they sell. Additional profitable items are highlighted. " +
-                        "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world."
+                        "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world. " +
+                        "Numulite and Tokkul shops are excluded from GP profit rankings."
                     ) }
+                    item {
+                        TextButton(onClick = { showAllShopDirectory = !showAllShopDirectory }) {
+                            Text(if (showAllShopDirectory) "Show profit rankings" else "Browse all shops (including special currencies)",
+                                color = MoneyGold, fontSize = 12.sp)
+                        }
+                    }
                     if (shopLoading) item {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -436,7 +444,24 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             MoneyNotice("${catalog.failedPages} Wiki pages could not be scanned in the latest catalog.")
                         }
                     }
-                    if (shopCatalog != null && market != null) {
+                    if (showAllShopDirectory && shopCatalog != null) {
+                        val allShops = shopCatalog!!.shops.filter {
+                            query.isBlank() || it.title.contains(query, true)
+                        }.sortedBy { it.title.lowercase() }
+                        item {
+                            Text("${allShops.size} shops • alphabetical directory, including Tokkul and Numulite",
+                                color = MoneyParchment, fontSize = 12.sp)
+                        }
+                        items(allShops, key = { "directory" + it.title }) { shop ->
+                            MoneyTextTile(shop.title,
+                                if (ShopRankings.isSpecialCurrencyShop(shop))
+                                    "Special currency • excluded from GP rankings"
+                                else "View stock →") {
+                                selectedShop = shop.title
+                                view = "shop"
+                            }
+                        }
+                    } else if (shopCatalog != null && market != null) {
                         val numbered = rankedShops.withIndex().filter { indexed ->
                             val shop = indexed.value
                             shop.standout != null &&
@@ -454,7 +479,9 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             }
                         }
                         val unprofitable = rankedShops.filter {
-                            it.standout == null && (query.isBlank() || it.detail.title.contains(query, true))
+                            !ShopRankings.isSpecialCurrencyShop(it.detail) &&
+                                it.standout == null &&
+                                (query.isBlank() || it.detail.title.contains(query, true))
                         }
                         if (unprofitable.isNotEmpty()) {
                             item {
@@ -493,8 +520,19 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         if (detail.notes.isNotBlank()) item { Text(detail.notes, color = MoneyParchment, fontSize = 12.sp) }
                         item { MoneyNotice("The shop price is the Wiki's listed base price, not live world stock. " +
                             "Profit is for ONE item at that quoted price; no assumed bulk margin.") }
-                        val evals = market?.let { snap -> detail.stock.map { MoneyProfitCalculator.shop(it, snap) } }
-                            ?: detail.stock.map { MoneyShopEvaluation(it, null, null, null, emptyList()) }
+                        val specialCurrency = ShopRankings.isSpecialCurrencyShop(detail)
+                        if (specialCurrency) item {
+                            MoneyNotice("This shop uses a special currency, not ordinary GP. " +
+                                "Excluded from profit rankings; listed prices are not coin amounts.")
+                        }
+                        val evals = market?.let { snap ->
+                            detail.stock.map { row ->
+                                if (specialCurrency || ShopRankings.isExcludedItem(row.item)) {
+                                    MoneyShopEvaluation(row, null, null, null,
+                                        listOf("Special currency or Numulite/Tokkul item; excluded from GP calculations"))
+                                } else MoneyProfitCalculator.shop(row, snap)
+                            }
+                        } ?: detail.stock.map { MoneyShopEvaluation(it, null, null, null, emptyList()) }
                         if (evals.isEmpty()) item {
                             MoneyNotice("No standard GP-denominated stock table was detected. " +
                                 "This may be a specialty shop, a directory page, or a changed Wiki template.")
@@ -730,8 +768,11 @@ private fun MoneyShopRow(entry: MoneyShopEvaluation) {
                 Text(entry.row.item, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text("Stock ${entry.row.stock} · Restock ${entry.row.restock}",
                     color = MoneyParchment, fontSize = 10.sp)
-                Text("Shop: ${entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown"} · " +
-                    "GE sell: ${entry.geSellPrice?.let { gp(it.toLong()) } ?: "unknown"}",
+                val specialCurrency = entry.flags.any { it.startsWith("Special currency") }
+                Text((if (specialCurrency) "Shop (non-GP currency): " else "Shop (GP): ") +
+                    (entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown") +
+                    (if (specialCurrency) "" else " · GE sell: " +
+                        (entry.geSellPrice?.let { gp(it.toLong()) } ?: "unknown")),
                     color = MoneyParchment, fontSize = 11.sp)
                 if (entry.flags.isNotEmpty()) Text(entry.flags.joinToString(" · "),
                     color = MoneyParchment, fontSize = 10.sp)

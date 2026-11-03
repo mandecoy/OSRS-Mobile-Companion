@@ -108,6 +108,38 @@ data class RankedShop(
 }
 
 object ShopRankings {
+    /**
+     * These shops charge Tokkul or other non-GP currency. Treating their
+     * numeric stock prices as coins creates fabricated profit margins.
+     */
+    internal fun isKnownSpecialCurrencyShop(title: String): Boolean {
+        val value = title.lowercase(Locale.ROOT)
+        return value.startsWith("tzhaar-") ||
+            value.contains("tokkul") ||
+            value.contains("numulite")
+    }
+
+    internal fun isExcludedItem(itemName: String): Boolean {
+        val value = itemName.trim().lowercase(Locale.ROOT)
+        return value == "numulite" || value == "numulites" || value == "tokkul"
+    }
+
+    internal fun isSpecialCurrencyShop(shop: WikiShopDetail): Boolean {
+        if (isKnownSpecialCurrencyShop(shop.title)) return true
+        val notes = shop.notes.lowercase(Locale.ROOT)
+        val location = shop.location.lowercase(Locale.ROOT)
+        if (location.contains("mor ul rek") || location.contains("tzhaar city")) return true
+        // Wiki descriptions often state the currency even when omitted in title.
+        return notes.contains("sold for tokkul") ||
+            notes.contains("bought with tokkul") ||
+            notes.contains("using tokkul") ||
+            notes.contains("only accept tokkul") ||
+            notes.contains("with numulite") ||
+            notes.contains("for numulites") ||
+            notes.contains("using numulites") ||
+            notes.contains("numulites as currency")
+    }
+
     internal fun isBuyableStock(raw: String): Boolean {
         val text = raw.trim().lowercase(Locale.ROOT).replace(",", "")
         if (text.isEmpty() || text == "0" || text in setOf("none", "n/a", "-")) return false
@@ -119,7 +151,8 @@ object ShopRankings {
                  now: Long = System.currentTimeMillis()): List<RankedShop> =
         shops.map { shop ->
             val profitable = shop.stock.asSequence()
-                .filter { isBuyableStock(it.stock) }
+                .filter { !isSpecialCurrencyShop(shop) }
+                .filter { isBuyableStock(it.stock) && !isExcludedItem(it.item) }
                 .map { MoneyProfitCalculator.shop(it, snapshot, now) }
                 .filter { (it.netUnitProfit ?: 0L) > 0L }
                 .distinctBy { it.row.item.lowercase(Locale.ROOT) }

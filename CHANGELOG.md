@@ -2,6 +2,15 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.2
+
+### Shop Profits special-currency exclusion
+- Exclude Numulite and Tokkul items from automatic GP profit and standout item rankings.
+- Exclude TzHaar/Tokkul shops and shops using Numulites from GP profit rankings, to avoid treating special-currency prices as coins.
+- Keep special-currency shops accessible in the optional alphabetical All Shops directory, with a warning and no invented GP profit figures.
+- Show shop base prices as non-GP currency in details when applicable.
+- Add regression tests for excluded currencies and ensure legitimate GP-priced standout products still rank normally.
+
 ## 0.7.1
 
 ### Ranked NPC shop profits

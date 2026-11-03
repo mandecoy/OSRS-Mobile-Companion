@@ -73,4 +73,42 @@ class ShopStandoutRankingTest {
         // GE low 1000 => 20 tax => 980 net, minus 500 from shop.
         assertEquals(480L, rank.single().standoutProfit)
     }
+
+    @Test fun numuliteCannotBeChosenAsStandoutButOtherCoinItemsCan() {
+        val snapshot = MarketSnapshot(
+            items + MarketItem(5, "Numulite", 30000, null),
+            snapshot().latest + (5 to LatestPrice(3000, 3000, time, time)),
+            snapshot().hourly + (5 to HourPrice(3000, 3000, 1000, 1000)),
+            now
+        )
+        val shop = WikiShopDetail("Ordinary Coin Shop", "Varrock", "",
+            listOf(row("Ordinary Coin Shop", "Numulite", 1),
+                row("Ordinary Coin Shop", "One", 500)))
+        val rank = ShopRankings.evaluate(listOf(shop), snapshot, now).single()
+        assertEquals("One", rank.standout?.row?.item)
+        assertEquals(1, rank.profitableCount)
+    }
+
+    @Test fun tokkulShopsCannotBeRankedAsIfTheirPricesWereGp() {
+        val tokkulShop = WikiShopDetail("TzHaar-Hur-Lek's Ore and Gem Store",
+            "Mor Ul Rek", "Items can only be bought with Tokkul.",
+            listOf(row("TzHaar-Hur-Lek's Ore and Gem Store", "Fourth", 1)))
+        val genericName = WikiShopDetail("Special Currency Shop", "Mor Ul Rek",
+            "Items are bought with Tokkul.",
+            listOf(row("Special Currency Shop", "Fourth", 1)))
+        val ranks = ShopRankings.evaluate(listOf(tokkulShop, genericName), snapshot(), now)
+        assertTrue(ranks.all { it.standout == null })
+        assertTrue(ranks.all { it.profitableCount == 0 })
+        assertTrue(ShopRankings.isKnownSpecialCurrencyShop("TzHaar-Mej-Roh's Rune Store"))
+    }
+
+    @Test fun numuliteCurrencyShopsCannotAppearAsGpOpportunities() {
+        val shop = WikiShopDetail("Fossil Island Currency Store",
+            "Fossil Island", "Items are bought with numulites.",
+            listOf(row("Fossil Island Currency Store", "Fourth", 1)))
+        assertTrue(ShopRankings.isSpecialCurrencyShop(shop))
+        assertNull(ShopRankings.evaluate(listOf(shop), snapshot(), now).single().standout)
+        assertTrue(ShopRankings.isExcludedItem("Numulite"))
+        assertTrue(ShopRankings.isExcludedItem("Tokkul"))
+    }
 }
