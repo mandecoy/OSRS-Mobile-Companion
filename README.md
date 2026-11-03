@@ -7,6 +7,10 @@ A free, open-source Android companion app built for Old School RuneScape Mobile.
 
 ## Features
 
+- Native Money Making hub: searchable Wiki guide rankings, shop directory and inventories, GE-based profit calculators for jewellery, tablets, leather tanning, planks, unfinished potions, bloodwood seeking arrows and other processing.
+- Unit-profit and selected GP/hour estimates, flagged stale/low-volume quotes, capital filters and saved methods. Wiki GP/hour figures are marked as estimates, and NPC stock is not available live by world.
+- Each method, recipe and shop is viewed inside Companion; Wiki source links are optional references.
+
 - Custom timers with separate minute and second fields
 - Non-focus floating companion overlay that stays above OSRS
 - Compact two-column mini dashboard with Wiki, GE Prices, Clue Puzzle, Timers, Wiki Favorites, Swap Windows and close controls
