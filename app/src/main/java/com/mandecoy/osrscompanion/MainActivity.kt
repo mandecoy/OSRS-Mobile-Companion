@@ -150,6 +150,7 @@ private val Tools = listOf(
     Tool("Floating Companion", "Overlay + repeatable timer", "floating", osrsWikiImage("Magical_orb.png")),
     Tool("Wiki Favorites", "Your own Wiki shortcut widgets", "wiki_favorites", osrsWikiImage("Book.png")),
     Tool("GE Tools", "Flips + market movers", "ge_tools", osrsWikiImage("Grand_Exchange_Clerk.png")),
+    Tool("Money Making", "Shops, live profits + processing", "money_making", osrsWikiImage("Coins_10000.png")),
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
     Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
     Tool("Fairy Rings", "Code + location directory", "fairy_rings", osrsWikiImage("Fairy_ring.png")),
