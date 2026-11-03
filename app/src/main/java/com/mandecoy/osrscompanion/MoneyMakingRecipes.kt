@@ -152,6 +152,19 @@ object MoneyRecipeCatalog {
                 notes = "Profit per product only. Hourly rate depends on actual processing speed.",
                 source = "Money_making_guide/Processing")
         }
+        // Untradeable sap cannot be purchased, so only the material margin is
+        // calculated; real profit/hour is shown in the Wiki method catalogue.
+        listOf("Rune", "Amethyst", "Dragon").forEach { type ->
+            recipes += MoneyRecipe("Bloodwood: seeking ${type.lowercase()} arrows",
+                "Bloodwood & Skilling", "Seeking ${type.lowercase()} arrow",
+                listOf(MoneyIngredient("Redwood logs", 1.0 / 105.0),
+                    MoneyIngredient("Feather"), MoneyIngredient("$type arrow")),
+                actionsPerHour = null,
+                requirements = "77 Woodcutting, The Blood Moon Rises, bloodwood sap, Fletching",
+                notes = "Uses 1 untradeable bucket of bloodwood sap per 105 arrows via redwood logs. " +
+                    "Chopping and fletching time are not included: this is material margin per arrow, NOT GP/hour.",
+                source = "Money_making_guide/Chopping_the_engorged_bloodwood_tree")
+        }
         val herbs = listOf("Guam", "Marrentill", "Tarromin", "Harralander",
             "Ranarr weed", "Toadflax", "Irit leaf", "Avantoe", "Kwuarm", "Snapdragon",
             "Cadantine", "Lantadyme", "Dwarf weed", "Torstol")
