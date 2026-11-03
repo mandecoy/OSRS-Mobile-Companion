@@ -94,6 +94,9 @@ fun MoneyMakingScreen(nav: NavHostController) {
     var shopRevision by remember { mutableIntStateOf(0) }
     var methods by remember { mutableStateOf<List<WikiMoneyMethod>>(emptyList()) }
     var shopNames by remember { mutableStateOf<List<String>>(emptyList()) }
+    var shopCatalog by remember { mutableStateOf<ShopCatalog?>(null) }
+    var catalogError by remember { mutableStateOf("") }
+    var catalogRevision by remember { mutableIntStateOf(-1) }
     var methodLoading by remember { mutableStateOf(true) }
     var shopLoading by remember { mutableStateOf(false) }
     var detailLoading by remember { mutableStateOf(false) }
@@ -130,17 +133,30 @@ fun MoneyMakingScreen(nav: NavHostController) {
         }
     }
     LaunchedEffect(view, shopRevision) {
-        if (view == "shops" && (shopNames.isEmpty() || shopRevision > 0)) {
+        if (view == "shops" && catalogRevision != shopRevision) {
             shopLoading = true
-            shopError = ""
+            catalogError = ""
             try {
-                shopNames = withContext(Dispatchers.IO) {
-                    MoneyWikiApi.loadShops(context.applicationContext, shopRevision > 0)
+                // The nightly Wiki inventory index eliminates hundreds of
+                // individual shop requests when opening this screen.
+                val loaded = withContext(Dispatchers.IO) {
+                    ShopCatalogApi.load(context.applicationContext, shopRevision > 0)
                 }
+                shopCatalog = loaded
+                shopNames = loaded.shops.map { it.title }
             } catch (error: Exception) {
-                shopError = error.message ?: "Unable to retrieve shop directory"
+                shopCatalog = null
+                catalogError = error.message ?: "Ranked shop index unavailable"
+                try {
+                    shopNames = withContext(Dispatchers.IO) {
+                        MoneyWikiApi.loadShops(context.applicationContext)
+                    }
+                } catch (directoryError: Exception) {
+                    shopError = directoryError.message ?: "Unable to retrieve shops"
+                }
             } finally {
                 shopLoading = false
+                catalogRevision = shopRevision
             }
         }
     }
@@ -150,9 +166,10 @@ fun MoneyMakingScreen(nav: NavHostController) {
             shopDetail = null
             shopError = ""
             try {
-                shopDetail = withContext(Dispatchers.IO) {
-                    MoneyWikiApi.loadShopDetail(context.applicationContext, selectedShop, shopRevision > 0)
-                }
+                shopDetail = shopCatalog?.shops?.firstOrNull { it.title == selectedShop }
+                    ?: withContext(Dispatchers.IO) {
+                        MoneyWikiApi.loadShopDetail(context.applicationContext, selectedShop)
+                    }
             } catch (error: Exception) {
                 shopError = error.message ?: "Unable to retrieve shop inventory"
             } finally {
@@ -208,6 +225,13 @@ fun MoneyMakingScreen(nav: NavHostController) {
                 .sortedWith(compareByDescending<MoneyEvaluation> { it.gpHour ?: Long.MIN_VALUE }
                     .thenByDescending { it.profit ?: Long.MIN_VALUE })
         }.orEmpty()
+    }
+    val rankedShops = remember(shopCatalog, market) {
+        val catalog = shopCatalog
+        val prices = market
+        if (catalog != null && prices != null) {
+            ShopRankings.evaluate(catalog.shops, prices)
+        } else emptyList()
     }
     val bank = bankInput.replace(",", "").trim().toLongOrNull()?.coerceAtLeast(0L)
     val visibleMethods = methods.asSequence().filter {
@@ -381,18 +405,80 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     }
                 }
                 "shops" -> {
-                    item { Text("ALL NPC SHOPS", color = MoneyGold, fontWeight = FontWeight.Bold) }
-                    item { MoneyNotice("Complete Wiki shop-category index. Open any shop to see " +
-                        "its stock and compare its listed base prices to current GE instant-sell quotes. " +
-                        "Actual shop stock and prices depend on world and purchases.") }
-                    if (shopLoading) item { CircularProgressIndicator(color = MoneyGold) }
+                    item { Text("SHOP PROFITS • BEST STANDOUT ITEMS", color = MoneyGold, fontWeight = FontWeight.Bold) }
+                    item { MoneyNotice(
+                        "Shops are ranked by the NET GP profit of their single standout item, " +
+                        "not by how many items they sell. Additional profitable items are highlighted. " +
+                        "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world."
+                    ) }
+                    if (shopLoading) item {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            CircularProgressIndicator(color = MoneyGold, modifier = Modifier.size(22.dp))
+                            Text("Loading complete shop inventory index...", color = MoneyParchment, fontSize = 12.sp)
+                        }
+                    }
+                    if (catalogError.isNotBlank()) item {
+                        MoneyNotice("Shop ranking data unavailable: " + catalogError +
+                            ". The alphabetical directory is still accessible.")
+                    }
                     if (shopError.isNotBlank()) item { MoneyNotice(shopError) }
-                    val filtered = shopNames.filter { query.isBlank() || it.contains(query, true) }
-                    item { Text("${filtered.size} matching shop pages", color = MoneyParchment, fontSize = 12.sp) }
-                    items(filtered, key = { "shop" + it }) { shop ->
-                        MoneyTextTile(shop, "View inventory →") {
-                            selectedShop = shop
-                            view = "shop"
+                    shopCatalog?.let { catalog ->
+                        item {
+                            Text(
+                                "Catalog: ${catalog.shops.size} shops • ${catalog.stockedPages} inventories • " +
+                                "Wiki updated ${catalog.generatedAt.take(10)}" +
+                                if (catalog.isFallback) " (cached)" else "",
+                                color = MoneyParchment, fontSize = 11.sp
+                            )
+                        }
+                        if (catalog.failedPages > 0) item {
+                            MoneyNotice("${catalog.failedPages} Wiki pages could not be scanned in the latest catalog.")
+                        }
+                    }
+                    if (shopCatalog != null && market != null) {
+                        val numbered = rankedShops.withIndex().filter { indexed ->
+                            val shop = indexed.value
+                            shop.standout != null &&
+                                (query.isBlank() || shop.detail.title.contains(query, true) ||
+                                    shop.profitableItems.any { it.row.item.contains(query, true) })
+                        }
+                        item {
+                            Text("${numbered.size} profitable shops • ranked by strongest item",
+                                color = MoneyGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        items(numbered, key = { "ranked" + it.value.detail.title }) { indexed ->
+                            MoneyRankedShopCard(indexed.index + 1, indexed.value) {
+                                selectedShop = indexed.value.detail.title
+                                view = "shop"
+                            }
+                        }
+                        val unprofitable = rankedShops.filter {
+                            it.standout == null && (query.isBlank() || it.detail.title.contains(query, true))
+                        }
+                        if (unprofitable.isNotEmpty()) {
+                            item {
+                                Text("OTHER SHOPS • NO VERIFIED POSITIVE MARGIN",
+                                    color = MoneyParchment, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                            items(unprofitable, key = { "unranked" + it.detail.title }) { shop ->
+                                MoneyTextTile(shop.detail.title, "No confirmed profitable standout • view stock") {
+                                    selectedShop = shop.detail.title
+                                    view = "shop"
+                                }
+                            }
+                        }
+                    } else if (!shopLoading) {
+                        val filtered = shopNames.filter { query.isBlank() || it.contains(query, true) }
+                        item {
+                            Text("${filtered.size} shop pages (not profit-ranked)",
+                                color = MoneyParchment, fontSize = 12.sp)
+                        }
+                        items(filtered, key = { "shop" + it }) { shop ->
+                            MoneyTextTile(shop, "View inventory →") {
+                                selectedShop = shop
+                                view = "shop"
+                            }
                         }
                     }
                 }
@@ -413,7 +499,10 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             MoneyNotice("No standard GP-denominated stock table was detected. " +
                                 "This may be a specialty shop, a directory page, or a changed Wiki template.")
                         }
-                        items(evals.sortedWith(compareByDescending<MoneyShopEvaluation> { it.netUnitProfit ?: Long.MIN_VALUE }),
+                        items(evals.sortedWith(compareByDescending<MoneyShopEvaluation> {
+                            if (ShopRankings.isBuyableStock(it.row.stock)) it.netUnitProfit ?: Long.MIN_VALUE
+                            else Long.MIN_VALUE
+                        }),
                             key = { "stock" + it.row.item }) { value -> MoneyShopRow(value) }
                         item {
                             OutlinedButton(onClick = { save("shop|" + detail.title) }) {
@@ -662,5 +751,69 @@ private fun MoneyLabeledPrice(label: String, number: Long?) {
         Text(number?.let { gp(it) + " GP" } ?: "Unavailable",
             color = if (number != null && number >= 0) MoneyGreen else MoneyParchment,
             fontWeight = FontWeight.Bold, fontSize = 12.sp)
+    }
+}
+
+
+@Composable
+private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit) {
+    val best = shop.standout ?: return
+    val net = best.netUnitProfit ?: return
+    val risky = best.flags.any {
+        it.contains("Stale", ignoreCase = true) ||
+            it.contains("volume", ignoreCase = true)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MoneyStone),
+        border = BorderStroke(1.dp, MoneyGold.copy(alpha = 0.28f))
+    ) {
+        Column(Modifier.fillMaxWidth().padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("#" + rank, color = MoneyGold, fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold)
+                Column(Modifier.weight(1f)) {
+                    Text(shop.detail.title, color = MoneyWhite,
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    if (shop.detail.location.isNotBlank()) {
+                        Text(shop.detail.location, color = MoneyParchment, fontSize = 10.sp)
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("+" + gp(net) + " GP", color = MoneyGreen, fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold)
+                    Text("per item", color = MoneyParchment, fontSize = 10.sp)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WikiIcon(osrsWikiImage(best.row.item.replace(' ', '_') + ".png"),
+                    best.row.item, 30.dp)
+                Column(Modifier.weight(1f)) {
+                    Text("Standout: " + best.row.item, color = MoneyWhite,
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Shop " + (best.row.basePurchasePrice?.let { gp(it) } ?: "?") +
+                            " GP • GE " + (best.geSellPrice?.let { gp(it.toLong()) } ?: "?") +
+                            " GP • stock " + best.row.stock,
+                        color = MoneyParchment, fontSize = 11.sp
+                    )
+                }
+            }
+            if (shop.profitableCount > 1) {
+                Text(shop.profitableCount.toString() + " profitable items in this shop",
+                    color = MoneyGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                if (shop.otherItems.isNotEmpty()) {
+                    Text("Also: " + shop.otherItems.joinToString(" • ") {
+                        it.row.item + " +" + gp(it.netUnitProfit ?: 0L)
+                    }, color = MoneyParchment, fontSize = 11.sp)
+                }
+            }
+            if (risky) {
+                Text("Check GE liquidity / price freshness", color = MoneyRed, fontSize = 11.sp)
+            }
+        }
     }
 }

@@ -2,6 +2,17 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.1
+
+### Ranked NPC shop profits
+- Automatically sort Shop Profits by each shop's single most profitable buyable item after standard GE tax, not by summing the shop's stock.
+- Display an easy-to-scan standout item on each shop card with stock quantity, base purchase price, GE instant-sell quote, and net GP per item.
+- Emphasize shops with multiple profitable products; show an extra-items count and the next three profitable items without changing the rank.
+- Preserve all Wiki category shop pages. Shops with no confirmed profitable product appear in a separate section without fabricated ranks.
+- Refresh live GE prices separately from a versioned, complete Wiki shop inventory index. A GitHub workflow refreshes the catalog daily; the app caches recent complete catalogs and shows clear fallback messaging if the dataset is unavailable.
+- The indexing workflow verified 513 shop pages, 392 stocked pages and 4,412 priced stock rows in its first complete run.
+- Respect zero-stock and non-GP/missing prices; warn about stale and low-volume GE quotes. World-specific stock and changing purchase prices remain unknown.
+
 ## 0.7.0
 
 ### Native Money Making hub
