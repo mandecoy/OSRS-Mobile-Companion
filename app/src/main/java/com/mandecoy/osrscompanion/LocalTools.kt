@@ -72,6 +72,7 @@ object ToolOrderStore {
         "floating" to "Floating Companion",
         "wiki_favorites" to "Wiki Favorites",
         "ge_tools" to "GE Tools",
+        "money_making" to "Money Making",
         "high_alch" to "High Alch",
         "portfolio" to "Portfolio",
         "fairy_rings" to "Fairy Rings",
