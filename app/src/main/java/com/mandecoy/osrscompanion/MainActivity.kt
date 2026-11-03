@@ -305,6 +305,7 @@ private fun CompanionApp() {
                 } else WikiFavoritesScreen(nav)
             }
             composable("ge_tools") { GeToolsScreen(nav) }
+            composable("money_making") { MoneyMakingScreen(nav) }
             composable("high_alch") { HighAlchScreen(nav) }
             composable("portfolio") { PortfolioScreen(nav) }
             composable("fairy_rings") { FairyRingDirectoryScreen(nav) }
