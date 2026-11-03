@@ -310,6 +310,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             }) { category = selected; query = ""; view = "recipes" }
                         }
                     }
+                    item { MoneyCategoryTile("Gathering & Skilling", "Bloodwood, mining, hunter, woodcutting and more", "Dragon_axe.png") {
+                        view = "methods"; query = ""; selectedCatalogCategory = "Skilling"
+                    } }
+                    item { MoneyCategoryTile("Combat & Collecting", "PvM and item collection methods", "Dragon_scimitar.png") {
+                        view = "methods"; query = ""; selectedCatalogCategory = "Combat"
+                    } }
                     item { MoneyCategoryTile("All Wiki Money Makers", "Processing, skilling, combat, collecting, recurring", "Coins_10000.png") {
                         view = "methods"; query = ""; selectedCatalogCategory = "All"
                     } }
