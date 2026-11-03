@@ -70,7 +70,7 @@ private object MoneyFavorites {
 }
 
 private val moneyCategories = listOf(
-    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing"
+    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing", "Bloodwood & Skilling"
 )
 
 @Composable
