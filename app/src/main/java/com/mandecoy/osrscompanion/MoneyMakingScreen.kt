@@ -305,7 +305,8 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                 "Jewellery" -> "Gold_ring.png"
                                 "Teleport Tablets" -> "Varrock_teleport.png"
                                 "Magic Processing" -> "Nature_rune.png"
-                                else -> "Crushed_nest.png"
+                                "Other Processing" -> "Crushed_nest.png"
+                                else -> "Redwood_logs.png"
                             }) { category = selected; query = ""; view = "recipes" }
                         }
                     }
