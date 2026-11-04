@@ -198,7 +198,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     fun previous() {
         view = when (view) {
             "shop" -> "shops"
-            "recipe" -> "recipes"
+            "recipe" -> if (category == "Gathering & Skilling") "methods" else "recipes"
             "method" -> "methods"
             else -> "home"
         }
@@ -213,6 +213,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     }
     fun selectRecipe(evaluation: MoneyEvaluation) {
         selectedRecipe = evaluation
+        category = evaluation.recipe.category
         view = "recipe"
     }
     fun openWiki(page: String) {
@@ -515,8 +516,8 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         }
                         items(numbered, key = { "ranked" + it.value.detail.title }) { indexed ->
                             MoneyRankedShopCard(indexed.index + 1, indexed.value,
-                                dailyVolume = market?.daily?.get(indexed.value.standout?.item?.id)?.volume,
-                                hourlyVolume = market?.hourly?.get(indexed.value.standout?.item?.id)?.volume) {
+                                dailyVolume = indexed.value.standout?.item?.id?.let { market?.daily?.get(it)?.volume },
+                                hourlyVolume = indexed.value.standout?.item?.id?.let { market?.hourly?.get(it)?.volume }) {
                                 selectedShop = indexed.value.detail.title
                                 view = "shop"
                             }
