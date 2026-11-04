@@ -160,7 +160,7 @@ object MoneyRecipeCatalog {
         // calculated; real profit/hour is shown in the Wiki method catalogue.
         listOf("Rune", "Amethyst", "Dragon").forEach { type ->
             recipes += MoneyRecipe("Bloodwood: seeking ${type.lowercase()} arrows",
-                "Bloodwood & Skilling", "Seeking ${type.lowercase()} arrow",
+                "Gathering & Skilling", "Seeking ${type.lowercase()} arrow",
                 listOf(MoneyIngredient("Redwood logs", 1.0 / 105.0),
                     MoneyIngredient("Feather"), MoneyIngredient("$type arrow")),
                 actionsPerHour = null,
@@ -211,30 +211,35 @@ object MoneyProfitCalculator {
      * outputs use instant-sell low. Missing price means no margin.
      */
     fun evaluate(recipe: MoneyRecipe, snapshot: MarketSnapshot, now: Long = System.currentTimeMillis()): MoneyEvaluation {
-        if (!recipe.verifiedMaterials) {
-            return MoneyEvaluation(recipe, null, null, null, null,
-                listOf("Untradeable ingredient: no reliable GP profit estimate"),
-                lookup(snapshot, recipe.output), null)
-        }
         val output = lookup(snapshot, recipe.output)
         val outputPrice = output?.let { snapshot.latest[it.id] }
+        val sellGp = if (outputPrice?.low != null && outputPrice.low > 0) {
+            (outputPrice.low.toLong() - geTax(outputPrice.low).toLong()) * recipe.outputQty
+        } else null
+        if (!recipe.verifiedMaterials) {
+            return MoneyEvaluation(recipe, null, sellGp, null, null,
+                listOf("Untradeable ingredient: sell quote shown, but total profit cannot be calculated"),
+                output, null)
+        }
         val missing = mutableListOf<String>()
+        val missingInputs = mutableListOf<String>()
         var cost = recipe.coinFee.toDouble()
         val bought = mutableListOf<Pair<MarketItem, Double>>()
         recipe.inputs.forEach { part ->
             val item = lookup(snapshot, part.item)
             val price = item?.let { snapshot.latest[it.id] }
-            if (item == null || price?.high == null) missing += part.item
-            else {
+            if (item == null || price?.high == null) {
+                missing += part.item
+                missingInputs += part.item
+            } else {
                 cost += price.high.toDouble() * part.quantity
                 bought += item to part.quantity
             }
         }
         if (output == null || outputPrice?.low == null) missing += recipe.output
-        val costGp = if (missing.isEmpty()) ceil(cost).toLong() else null
-        val sellGp = if (outputPrice?.low != null && outputPrice.low > 0) {
-            (outputPrice.low.toLong() - geTax(outputPrice.low).toLong()) * recipe.outputQty
-        } else null
+        // Input purchase cost is still useful even when an output quote is
+        // temporarily missing, and must not be hidden for that reason.
+        val costGp = if (missingInputs.isEmpty()) ceil(cost).toLong() else null
         val profit = if (costGp != null && sellGp != null) sellGp - costGp else null
         val flags = mutableListOf<String>()
         if (missing.isNotEmpty()) flags += "Missing GE price: " + missing.distinct().joinToString(", ")
