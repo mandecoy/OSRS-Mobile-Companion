@@ -2,6 +2,17 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.3
+
+### Coin-only shop profitability
+- Calculate and rank shop arbitrage opportunities **only when the shop and the item's purchase price are identified as ordinary GP (coins)**.
+- Introduce shop catalog schema v2 with currency identification for shops and individual inventory rows; non-GP and unknown payment prices have no GP profit rather than being treated as zero or coins.
+- Detect alternative shop currencies from Wiki page descriptions and item-price currency markup, including Tokkul, Numulite, golden nuggets, mermaid's tears, trading sticks, stardust, reward points, tickets, and other tokens.
+- Replace the previous catalog cache with a new verified version; an older price-only inventory cannot be accidentally used for GP ranking.
+- Noncoin and unverified shops remain browsable in the alphabetical shop directory, but do not appear in the GP ranking, even as normal unprofitable GP shops.
+- Add regression tests for mixed-currency stock rows, unknown currencies, and rejection within the shared profit engine.
+- Profit values remain based on documented Wiki base shop prices and live GE sold prices, so real world stock and actual purchase price variation still apply.
+
 ## 0.7.2
 
 ### Shop Profits special-currency exclusion

@@ -42,7 +42,7 @@ class MoneyMakingTest {
 
     @Test fun shopProfitIsPerUnitNotTotalStock() {
         val row = WikiShopStock("Finished product", "500", "1m",
-            700, null, "Example Shop")
+            700, null, "Example Shop", currency = "coins")
         val result = MoneyProfitCalculator.shop(row, snap(), now)
         assertEquals(280L, result.netUnitProfit)
     }

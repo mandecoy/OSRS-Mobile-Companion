@@ -70,6 +70,75 @@ def coin_price(value):
     return int(match.group(1).replace(",", "")) if match else None
 
 
+
+# Only GP-priced shop stock belongs in the ranked arbitrage feed. The rendered
+# Wiki price tables also appear for reward shops that charge points or tokens,
+# where a bare integer is NOT a GP price.
+OTHER_CURRENCIES = (
+    "tokkul", "numulite", "numulites", "trading sticks", "golden nuggets",
+    "mermaid's tears", "mermaid tears", "stardust", "anima-infused bark",
+    "abyssal pearls", "archery tickets", "agility arena tickets",
+    "agility tickets", "arena tickets", "slayer points", "reward points",
+    "commendation points", "commendations", "volcanic mine points",
+    "volcanic mine reward points", "golden nuggets", "marks of grace",
+    "pieces of eight", "ecto-tokens", "ecto tokens", "ecto-token",
+    "pest control points", "league points", "warrior guild tokens",
+    "warriors' guild tokens", "warriors guild tokens", "pizazz points",
+    "mermaid's tear", "mole claws", "mole skins", "mole claw", "mole skin",
+    "wintertodt points", "bounty hunter points", "favour points",
+    "favor points", "brimhaven tickets", "forestry bark", "reward tokens",
+    "token points", "pearls", "reward vouchers", "mastering mixology points", "unidentified minerals", "mineral points",
+)
+
+# These generic shop types are often not GP stores. Treat unverified prices
+# conservatively rather than falsely showing them as profitable GP arbitrage.
+SPECIAL_SHOP_TITLE = re.compile(
+    r"\b(?:rewards?|ticket exchange|ore exchange|mineral exchange|nugget shop|"
+    r"forestry shop|token shop|point shop|point store|"
+    r"commendation shop|mark exchange|mark shop|currency exchange)\b",
+    re.IGNORECASE,
+)
+
+
+def currency_from_page(title, intro):
+    summary = (title + " " + intro).lower()
+    # A few genuine coin shops mention noncoin currencies only as part
+    # of an optional banking route, not as payment for their stock.
+    if "buy raw karambwans from the shop with regular coins" in summary:
+        return "coins"
+    if any(word in summary for word in OTHER_CURRENCIES):
+        return "other"
+    if title.lower().startswith(("tzhaar-", "tzhaar ", "tzhaar'", "mairin's market")):
+        return "other"
+    if SPECIAL_SHOP_TITLE.search(title):
+        return "unknown"
+    # A standard OSRS NPC shop accepts coins unless documented otherwise.
+    # The per-row price field must ALSO be a plain coin amount.
+    return "coins"
+
+
+def currency_from_cell(cell, default):
+    labels = []
+    for image in cell.select("img"):
+        labels.extend((image.get("alt", ""), image.get("title", "")))
+    for a in cell.select("a[href]"):
+        labels.extend((a.get("title", ""), a.get("href", "")))
+    for span in cell.select("[title], [data-item-name]"):
+        labels.extend((span.get("title", ""), span.get("data-item-name", "")))
+    marked = " ".join(labels).lower()
+    if any(word in marked for word in OTHER_CURRENCIES):
+        return "other"
+    visible = cell.get_text(" ", strip=True)
+    if any(word in visible.lower() for word in OTHER_CURRENCIES):
+        return "other"
+    if marked and ("coins" in marked or "gold pieces" in marked):
+        # Shop-level non-GP evidence always overrides a coin-looking icon.
+        return "coins" if default == "coins" else default
+    if coin_price(visible) is None:
+        return "unknown"
+    return default
+
+
 def parse_shop_html(title, html):
     soup = BeautifulSoup(html, "html.parser")
     location = ""
@@ -78,13 +147,16 @@ def parse_shop_html(title, html):
         if th and th.get_text(" ", strip=True).lower() == "location":
             location = tr.find("td").get_text(" ", strip=True) if tr.find("td") else ""
             break
-    text = ""
-    content = soup.select_one(".mw-parser-output")
-    if content:
-        text = next(
-            (p.get_text(" ", strip=True)[:300] for p in content.find_all("p", recursive=False)
-             if len(p.get_text(" ", strip=True)) > 35), ""
-        )
+    # The MediaWiki parse API often nests lead paragraphs in wrapper divs.
+    # Find readable lead text rather than relying on direct-child <p>.
+    intro_paragraphs = [
+        re.sub(r"\s+", " ", p.get_text(" ", strip=True))
+        for p in soup.select(".mw-parser-output p, p")
+        if len(p.get_text(" ", strip=True)) > 30
+    ][:5]
+    intro = " ".join(intro_paragraphs)[:2500]
+    text = intro_paragraphs[0][:300] if intro_paragraphs else ""
+    shop_currency = currency_from_page(title, intro)
 
     stock = []
     for table in soup.select("table"):
@@ -121,14 +193,23 @@ def parse_shop_html(title, html):
                 continue
             quantity = cells[item_col + 1].get_text(" ", strip=True)
             restock = cells[item_col + 2].get_text(" ", strip=True)
-            sold = coin_price(cells[item_col + 3].get_text(" ", strip=True))
-            bought = coin_price(cells[item_col + 4].get_text(" ", strip=True))
-            # 0 stock is only for player-to-shop purchases, not buyable shop stock.
+            purchase_cell = cells[item_col + 3]
+            buyback_cell = cells[item_col + 4]
+            currency = currency_from_cell(purchase_cell, shop_currency)
+            sold = coin_price(purchase_cell.get_text(" ", strip=True))
+            bought = coin_price(buyback_cell.get_text(" ", strip=True))
+            # Prices are only meaningful as GP if the shop and that row are
+            # positively classified as ordinary coin payments. Non-GP
+            # amounts stay in the browsing catalog, but never rank.
+            if currency != "coins":
+                sold = None
+                bought = None
             stock.append({"item": name, "stock": quantity[:42],
-                          "restock": restock[:42], "purchase": sold, "buyback": bought})
+                          "restock": restock[:42], "purchase": sold,
+                          "buyback": bought, "currency": currency})
     stock = list({s["item"].casefold(): s for s in stock}.values())
     return {"title": title, "location": location[:180], "notes": text,
-            "stock": stock}
+            "currency": shop_currency, "stock": stock}
 
 
 def load_shop(title):
@@ -155,7 +236,7 @@ def build(output, workers=3, sample=0):
             except Exception as error:
                 errors[name] = str(error)
                 results[name] = {"title": name, "location": "", "notes": "",
-                                 "stock": [], "fetchFailed": True}
+                                 "currency": "unknown", "stock": [], "fetchFailed": True}
             if i % 40 == 0 or i == len(shops):
                 n = sum(bool(s["stock"]) for s in results.values())
                 print(f"{i}/{len(shops)} pages, {n} stocked, {len(errors)} errors", flush=True)
@@ -163,14 +244,18 @@ def build(output, workers=3, sample=0):
     stocked = sum(bool(shop["stock"]) for shop in results.values())
     priced = sum(row["purchase"] is not None
                  for shop in results.values() for row in shop["stock"])
-    print(f"Completed: stocked shops={stocked}, priced items={priced}, errors={len(errors)}",
-          flush=True)
+    coins = sum(shop["currency"] == "coins" for shop in results.values())
+    other = [(name, shop["currency"], len(shop["stock"]))
+             for name, shop in results.items() if shop["currency"] != "coins"]
+    print(f"Completed: stocked shops={stocked}, coin shops={coins}, "
+          f"GP-priced items={priced}, errors={len(errors)}", flush=True)
+    print("Excluded/unknown-currency shop pages:", sorted(other), flush=True)
     if not sample and (len(results) < 400 or stocked < 150 or priced < 450 or len(errors) > 75):
         print("Catalog verification failed; refusing to replace last good index.", file=sys.stderr)
         print("Example errors:", list(errors.items())[:8], file=sys.stderr)
         return 1
     dataset = {
-        "schema": 1,
+        "schema": 2,
         "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
         "totalPages": len(shops),
         "stockedPages": stocked,
@@ -186,7 +271,7 @@ def build(output, workers=3, sample=0):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="docs/shop-catalog-v1.json")
+    parser.add_argument("--output", default="docs/shop-catalog-v2.json")
     parser.add_argument("--workers", type=int, default=3)
     parser.add_argument("--sample", type=int, default=0)
     args = parser.parse_args()

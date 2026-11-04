@@ -7,6 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShopStandoutRankingTest {
+    private fun coinShop(title: String, location: String, notes: String,
+                         stock: List<WikiShopStock>): WikiShopDetail =
+        WikiShopDetail(title, location, notes, stock, currency = "coins")
+
     private val now = 1_800_000_000_000L
     private val time = now / 1000L
     private val items = listOf(
@@ -28,14 +32,14 @@ class ShopStandoutRankingTest {
         now
     )
     private fun row(shop: String, item: String, cost: Long, stock: String = "10"): WikiShopStock =
-        WikiShopStock(item, stock, "1m", cost, 0, shop)
+        WikiShopStock(item, stock, "1m", cost, 0, shop, currency = "coins")
 
     @Test fun highestSingleItemWinsEvenWhenOtherShopHasMoreProfitableItems() {
-        val many = WikiShopDetail("Many Items Shop", "Varrock", "",
+        val many = coinShop("Many Items Shop", "Varrock", "",
             listOf(row("Many Items Shop", "One", 500),
                 row("Many Items Shop", "Two", 250),
                 row("Many Items Shop", "Three", 400)))
-        val big = WikiShopDetail("Big Standout Shop", "Lumbridge", "",
+        val big = coinShop("Big Standout Shop", "Lumbridge", "",
             listOf(row("Big Standout Shop", "Fourth", 200)))
         val ranked = ShopRankings.evaluate(listOf(many, big), snapshot(), now)
         assertEquals("Big Standout Shop", ranked[0].detail.title)
@@ -49,7 +53,7 @@ class ShopStandoutRankingTest {
     }
 
     @Test fun emptyStockDoesNotCreateFakeStandout() {
-        val zero = WikiShopDetail("Empty shop", "", "",
+        val zero = coinShop("Empty shop", "", "",
             listOf(row("Empty shop", "Fourth", 1, "0")))
         val ranked = ShopRankings.evaluate(listOf(zero), snapshot(), now)
         assertNull(ranked.single().standout)
@@ -60,14 +64,14 @@ class ShopStandoutRankingTest {
     }
 
     @Test fun lossMakersAndMissingQuotesAreNotCountedAsProfitable() {
-        val bad = WikiShopDetail("Unprofitable", "", "",
+        val bad = coinShop("Unprofitable", "", "",
             listOf(row("Unprofitable", "Two", 900)))
         val ranked = ShopRankings.evaluate(listOf(bad), snapshot(), now)
         assertEquals(0, ranked.single().profitableCount)
     }
 
     @Test fun sortedProfitIsAfterGrandExchangeTax() {
-        val shop = WikiShopDetail("A", "", "",
+        val shop = coinShop("A", "", "",
             listOf(row("A", "One", 500)))
         val rank = ShopRankings.evaluate(listOf(shop), snapshot(), now)
         // GE low 1000 => 20 tax => 980 net, minus 500 from shop.
@@ -81,7 +85,7 @@ class ShopStandoutRankingTest {
             snapshot().hourly + (5 to HourPrice(3000, 3000, 1000, 1000)),
             now
         )
-        val shop = WikiShopDetail("Ordinary Coin Shop", "Varrock", "",
+        val shop = coinShop("Ordinary Coin Shop", "Varrock", "",
             listOf(row("Ordinary Coin Shop", "Numulite", 1),
                 row("Ordinary Coin Shop", "One", 500)))
         val rank = ShopRankings.evaluate(listOf(shop), snapshot, now).single()
@@ -90,10 +94,10 @@ class ShopStandoutRankingTest {
     }
 
     @Test fun tokkulShopsCannotBeRankedAsIfTheirPricesWereGp() {
-        val tokkulShop = WikiShopDetail("TzHaar-Hur-Lek's Ore and Gem Store",
+        val tokkulShop = coinShop("TzHaar-Hur-Lek's Ore and Gem Store",
             "Mor Ul Rek", "Items can only be bought with Tokkul.",
             listOf(row("TzHaar-Hur-Lek's Ore and Gem Store", "Fourth", 1)))
-        val genericName = WikiShopDetail("Special Currency Shop", "Mor Ul Rek",
+        val genericName = coinShop("Special Currency Shop", "Mor Ul Rek",
             "Items are bought with Tokkul.",
             listOf(row("Special Currency Shop", "Fourth", 1)))
         val ranks = ShopRankings.evaluate(listOf(tokkulShop, genericName), snapshot(), now)
@@ -103,7 +107,7 @@ class ShopStandoutRankingTest {
     }
 
     @Test fun numuliteCurrencyShopsCannotAppearAsGpOpportunities() {
-        val shop = WikiShopDetail("Fossil Island Currency Store",
+        val shop = coinShop("Fossil Island Currency Store",
             "Fossil Island", "Items are bought with numulites.",
             listOf(row("Fossil Island Currency Store", "Fourth", 1)))
         assertTrue(ShopRankings.isSpecialCurrencyShop(shop))
@@ -111,4 +115,35 @@ class ShopStandoutRankingTest {
         assertTrue(ShopRankings.isExcludedItem("Numulite"))
         assertTrue(ShopRankings.isExcludedItem("Tokkul"))
     }
+
+    @Test fun coinShopWithMixedPaymentCurrenciesOnlyRanksActualCoinRows() {
+        val shop = WikiShopDetail("Mixed payments", "Varrock", "", listOf(
+            row("Mixed payments", "One", 500),
+            row("Mixed payments", "Fourth", 1).copy(currency = "other"),
+            row("Mixed payments", "Three", 1).copy(currency = "unknown")
+        ), currency = "coins")
+        val evaluation = ShopRankings.evaluate(listOf(shop), snapshot(), now).single()
+        assertEquals("One", evaluation.standout?.row?.item)
+        assertEquals(1, evaluation.profitableCount)
+        assertEquals(480L, evaluation.standoutProfit)
+    }
+
+    @Test fun otherwiseNormalShopWithUnknownCurrencyNeverRanks() {
+        val unknown = WikiShopDetail("Looks like a normal shop", "Falador", "",
+            listOf(row("Looks like a normal shop", "Fourth", 1)), currency = "unknown")
+        val other = WikiShopDetail("Barbarian points store", "Varrock", "",
+            listOf(row("Barbarian points store", "Fourth", 1)), currency = "other")
+        val evaluations = ShopRankings.evaluate(listOf(unknown, other), snapshot(), now)
+        assertTrue(evaluations.all { it.standout == null })
+        assertTrue(ShopRankings.isSpecialCurrencyShop(unknown))
+        assertTrue(ShopRankings.isSpecialCurrencyShop(other))
+    }
+
+    @Test fun standaloneGpProfitEngineDoesNotValuePointsAsCoins() {
+        val pointsRow = row("Mixed", "Fourth", 1).copy(currency = "other")
+        val unknownRow = row("Mixed", "Fourth", 1).copy(currency = "unknown")
+        assertNull(MoneyProfitCalculator.shop(pointsRow, snapshot(), now).netUnitProfit)
+        assertNull(MoneyProfitCalculator.shop(unknownRow, snapshot(), now).netUnitProfit)
+    }
+
 }

@@ -247,6 +247,10 @@ object MoneyProfitCalculator {
     }
 
     fun shop(row: WikiShopStock, snapshot: MarketSnapshot, now: Long = System.currentTimeMillis()): MoneyShopEvaluation {
+        if (row.currency != "coins") {
+            return MoneyShopEvaluation(row, null, null, null,
+                listOf("Non-GP or unverified shop payment currency; excluded from GP calculations"))
+        }
         val item = lookup(snapshot, row.item)
         val price = item?.let { snapshot.latest[it.id] }
         val flags = mutableListOf<String>()

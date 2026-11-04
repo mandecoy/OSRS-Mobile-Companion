@@ -31,14 +31,16 @@ data class WikiShopStock(
     val restock: String,
     val basePurchasePrice: Long?,
     val baseBuybackPrice: Long?,
-    val shop: String
+    val shop: String,
+    val currency: String = "unknown"
 )
 
 data class WikiShopDetail(
     val title: String,
     val location: String,
     val notes: String,
-    val stock: List<WikiShopStock>
+    val stock: List<WikiShopStock>,
+    val currency: String = "unknown"
 )
 
 object MoneyWikiApi {
