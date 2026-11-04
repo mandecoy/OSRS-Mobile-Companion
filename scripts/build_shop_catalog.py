@@ -93,9 +93,9 @@ OTHER_CURRENCIES = (
 # These generic shop types are often not GP stores. Treat unverified prices
 # conservatively rather than falsely showing them as profitable GP arbitrage.
 SPECIAL_SHOP_TITLE = re.compile(
-    r"\\b(?:rewards?|ticket exchange|ore exchange|nugget shop|"
+    r"\b(?:rewards?|ticket exchange|ore exchange|nugget shop|"
     r"forestry shop|token shop|point shop|point store|"
-    r"commendation shop|mark exchange|mark shop|currency exchange)\\b",
+    r"commendation shop|mark exchange|mark shop|currency exchange)\b",
     re.IGNORECASE,
 )
 
