@@ -213,7 +213,8 @@ object MoneyProfitCalculator {
     fun evaluate(recipe: MoneyRecipe, snapshot: MarketSnapshot, now: Long = System.currentTimeMillis()): MoneyEvaluation {
         if (!recipe.verifiedMaterials) {
             return MoneyEvaluation(recipe, null, null, null, null,
-                listOf("Recipe ingredients not verified; item shown for completeness only"), null, null)
+                listOf("Untradeable ingredient: no reliable GP profit estimate"),
+                lookup(snapshot, recipe.output), null)
         }
         val output = lookup(snapshot, recipe.output)
         val outputPrice = output?.let { snapshot.latest[it.id] }
