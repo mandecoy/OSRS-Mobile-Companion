@@ -3,6 +3,7 @@ package com.mandecoy.osrscompanion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,16 +40,76 @@ class MoneyMakingRecipeRegressionTest {
         assertEquals(46, tablets.size)
         assertEquals(46, tablets.map { it.output }.distinct().size)
         assertTrue(tablets.all { it.category == "Teleport Tablets" })
-        val barrows = tablets.single { it.output == "Barrows teleport" }
+        val barrows = tablets.single { it.output == "Barrows teleport (tablet)" }
         assertTrue(barrows.inputs.any { it.item == "Blood rune" && it.quantity == 1.0 })
         assertTrue(barrows.inputs.any { it.item == "Law rune" && it.quantity == 2.0 })
-        val varrock = tablets.single { it.output == "Varrock teleport" }
+        val varrock = tablets.single { it.output == "Varrock teleport (tablet)" }
         assertTrue(varrock.inputs.any { it.item == "Soft clay" && it.quantity == 1.0 })
-        val ice = tablets.single { it.output == "Ice plateau teleport" }
+        val ice = tablets.single { it.output == "Ice plateau teleport (tablet)" }
         assertTrue(ice.inputs.any { it.item == "Water rune" && it.quantity == 8.0 })
-        val arceuus = tablets.single { it.output == "Arceuus library teleport" }
+        val arceuus = tablets.single { it.output == "Arceuus library teleport (tablet)" }
         assertFalse(arceuus.verifiedMaterials)
         assertTrue(arceuus.inputs.any { it.item == "Dark essence block" })
+    }
+
+    @Test fun tabletUsesCanonicalGeNameAndShowsLiveQuote() {
+        val recipe = MagicTabletCatalog.all().single {
+            it.output == "Varrock teleport (tablet)"
+        }
+        val items = listOf(
+            MarketItem(8007, "Varrock teleport (tablet)", 15000, null),
+            MarketItem(556, "Air rune", 50000, null),
+            MarketItem(554, "Fire rune", 50000, null),
+            MarketItem(563, "Law rune", 18000, null),
+            MarketItem(1761, "Soft clay", 13000, null)
+        )
+        val now = 1_800_000_000_000L
+        val prices = mapOf(
+            8007 to LatestPrice(560, 550, now / 1000L, now / 1000L),
+            556 to LatestPrice(6, 5, now / 1000L, now / 1000L),
+            554 to LatestPrice(6, 5, now / 1000L, now / 1000L),
+            563 to LatestPrice(117, 115, now / 1000L, now / 1000L),
+            1761 to LatestPrice(93, 91, now / 1000L, now / 1000L)
+        )
+        val snapshot = MarketSnapshot(items, prices, emptyMap(), now)
+        val profit = MoneyProfitCalculator.evaluate(recipe, snapshot, now)
+        assertEquals(8007, profit.outputItem?.id)
+        assertEquals(550, profit.outputSellQuote)
+        assertEquals(234L, profit.inputCost)
+        assertEquals(539L, profit.sellValue)
+        assertEquals(305L, profit.profit)
+    }
+
+    @Test fun missingOutputQuoteDoesNotHideKnownInputCosts() {
+        val recipe = MagicTabletCatalog.all().single {
+            it.output == "Varrock teleport (tablet)"
+        }
+        val now = 1_800_000_000_000L
+        val snapshot = MarketSnapshot(
+            listOf(
+                MarketItem(8007, "Varrock teleport (tablet)", 15000, null),
+                MarketItem(556, "Air rune", 50000, null),
+                MarketItem(554, "Fire rune", 50000, null),
+                MarketItem(563, "Law rune", 18000, null),
+                MarketItem(1761, "Soft clay", 13000, null)
+            ),
+            mapOf(
+                556 to LatestPrice(6, 5, now / 1000L, now / 1000L),
+                554 to LatestPrice(6, 5, now / 1000L, now / 1000L),
+                563 to LatestPrice(117, 115, now / 1000L, now / 1000L),
+                1761 to LatestPrice(93, 91, now / 1000L, now / 1000L)
+            ),
+            emptyMap(), now
+        )
+        val eval = MoneyProfitCalculator.evaluate(recipe, snapshot, now)
+        assertEquals(234L, eval.inputCost)
+        assertNull(eval.profit)
+    }
+
+    @Test fun bloodwoodUsesGeneralSkillingCategory() {
+        val entries = recipes.filter { it.name.startsWith("Bloodwood:") }
+        assertTrue(entries.isNotEmpty())
+        assertTrue(entries.all { it.category == "Gathering & Skilling" })
     }
 
     @Test fun wesleyNestCrushingIncludesServiceFee() {

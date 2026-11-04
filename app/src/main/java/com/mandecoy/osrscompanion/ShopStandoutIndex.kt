@@ -150,8 +150,34 @@ object ShopRankings {
         return text.toLongOrNull()?.let { it > 0 } ?: false
     }
 
+    /**
+     * Keep ranking by best GP/item, but only after checking liquidity.
+     * The default 5,000 trades / 24h + 100 trades / 1h rejects
+     * thinly traded anomalous quotes. 24h API failures fall back to a
+     * more conservative 1h threshold rather than treating volume as zero.
+     */
+    fun qualifiesForRanking(item: MoneyShopEvaluation, snapshot: MarketSnapshot,
+                            now: Long = System.currentTimeMillis(),
+                            minDailyVolume: Long = 5000L,
+                            minHourlyVolume: Long = 100L): Boolean {
+        val id = item.item?.id ?: return false
+        val quote = snapshot.latest[id]
+        val time = quote?.lowTime ?: return false
+        val age = now - time * 1000L
+        if (age !in 0..(6L * 60L * 60L * 1000L)) return false
+        val oneHourVolume = snapshot.hourly[id]?.volume ?: 0L
+        if (snapshot.daily.isNotEmpty()) {
+            val dayVolume = snapshot.daily[id]?.volume ?: 0L
+            return dayVolume >= minDailyVolume && oneHourVolume >= minHourlyVolume
+        }
+        // Missing daily data is not an invitation to rank a 1-unit item.
+        return oneHourVolume >= maxOf(250L, minHourlyVolume * 2L)
+    }
+
     fun evaluate(shops: List<WikiShopDetail>, snapshot: MarketSnapshot,
-                 now: Long = System.currentTimeMillis()): List<RankedShop> =
+                 now: Long = System.currentTimeMillis(),
+                 minDailyVolume: Long = 5000L,
+                 minHourlyVolume: Long = 100L): List<RankedShop> =
         shops.map { shop ->
             val profitable = shop.stock.asSequence()
                 .filter { !isSpecialCurrencyShop(shop) }
@@ -159,6 +185,7 @@ object ShopRankings {
                     !isExcludedItem(it.item) }
                 .map { MoneyProfitCalculator.shop(it, snapshot, now) }
                 .filter { (it.netUnitProfit ?: 0L) > 0L }
+                .filter { qualifiesForRanking(it, snapshot, now, minDailyVolume, minHourlyVolume) }
                 .distinctBy { it.row.item.lowercase(Locale.ROOT) }
                 .sortedByDescending { it.netUnitProfit ?: 0L }
                 .toList()

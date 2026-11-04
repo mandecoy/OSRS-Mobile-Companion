@@ -139,6 +139,49 @@ class ShopStandoutRankingTest {
         assertTrue(ShopRankings.isSpecialCurrencyShop(other))
     }
 
+    @Test fun illiquidHugeMarginCannotBecomeTheStandout() {
+        val shop = coinShop("Mixed liquidity", "Varrock", "",
+            listOf(row("Mixed liquidity", "One", 500),
+                   row("Mixed liquidity", "Fourth", 1)))
+        val base = snapshot()
+        val market = base.copy(
+            hourly = base.hourly + (4 to HourPrice(2000, 2000, 4, 3)),
+            daily = mapOf(
+                1 to HourPrice(1000, 1000, 9000, 1000),
+                4 to HourPrice(2000, 2000, 50, 40)
+            )
+        )
+        val ranked = ShopRankings.evaluate(listOf(shop), market, now)
+        assertEquals("One", ranked.single().standout?.row?.item)
+        assertEquals(1, ranked.single().profitableCount)
+        assertEquals(480L, ranked.single().standoutProfit)
+    }
+
+    @Test fun volumePresetCanMakeAnOtherwiseGoodItemEligible() {
+        val shop = coinShop("Volume threshold", "Varrock", "",
+            listOf(row("Volume threshold", "One", 500)))
+        val base = snapshot()
+        val market = base.copy(
+            daily = mapOf(1 to HourPrice(1000, 1000, 1200, 800))
+        )
+        assertNull(ShopRankings.evaluate(listOf(shop), market, now).single().standout)
+        assertEquals("One", ShopRankings.evaluate(listOf(shop), market,
+            now, minDailyVolume = 1000L, minHourlyVolume = 25L)
+            .single().standout?.row?.item)
+    }
+
+    @Test fun oldSellPriceCannotBeTheStandoutEvenAtHighVolume() {
+        val shop = coinShop("Stale price", "Varrock", "",
+            listOf(row("Stale price", "Fourth", 1)))
+        val base = snapshot()
+        val old = now / 1000L - (7L * 60L * 60L)
+        val market = base.copy(
+            latest = base.latest + (4 to LatestPrice(2200, 2000, time, old)),
+            daily = mapOf(4 to HourPrice(2000, 2000, 12000, 9000))
+        )
+        assertNull(ShopRankings.evaluate(listOf(shop), market, now).single().standout)
+    }
+
     @Test fun standaloneGpProfitEngineDoesNotValuePointsAsCoins() {
         val pointsRow = row("Mixed", "Fourth", 1).copy(currency = "other")
         val unknownRow = row("Mixed", "Fourth", 1).copy(currency = "unknown")

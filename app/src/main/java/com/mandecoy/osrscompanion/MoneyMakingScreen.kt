@@ -70,7 +70,7 @@ private object MoneyFavorites {
 }
 
 private val moneyCategories = listOf(
-    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing", "Bloodwood & Skilling"
+    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing"
 )
 
 @Composable
@@ -105,6 +105,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     var shopError by remember { mutableStateOf("") }
     var selectedCatalogCategory by remember { mutableStateOf("All") }
     var onlyReliable by remember { mutableStateOf(false) }
+    var minDailyShopVolume by remember { mutableIntStateOf(5000) }
     var favoritesVersion by remember { mutableIntStateOf(0) }
     val favorites = remember(favoritesVersion) { MoneyFavorites.all(context) }
     val recipes = remember { MoneyRecipeCatalog.all() }
@@ -197,7 +198,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     fun previous() {
         view = when (view) {
             "shop" -> "shops"
-            "recipe" -> "recipes"
+            "recipe" -> if (category == "Gathering & Skilling") "methods" else "recipes"
             "method" -> "methods"
             else -> "home"
         }
@@ -212,6 +213,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     }
     fun selectRecipe(evaluation: MoneyEvaluation) {
         selectedRecipe = evaluation
+        category = evaluation.recipe.category
         view = "recipe"
     }
     fun openWiki(page: String) {
@@ -227,11 +229,18 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     .thenByDescending { it.profit ?: Long.MIN_VALUE })
         }.orEmpty()
     }
-    val rankedShops = remember(shopCatalog, market) {
+    val rankedShops = remember(shopCatalog, market, minDailyShopVolume) {
         val catalog = shopCatalog
         val prices = market
         if (catalog != null && prices != null) {
-            ShopRankings.evaluate(catalog.shops, prices)
+            val hourMinimum = when (minDailyShopVolume) {
+                1000 -> 25L
+                20000 -> 200L
+                else -> 100L
+            }
+            ShopRankings.evaluate(catalog.shops, prices,
+                minDailyVolume = minDailyShopVolume.toLong(),
+                minHourlyVolume = hourMinimum)
         } else emptyList()
     }
     val bank = bankInput.replace(",", "").trim().toLongOrNull()?.coerceAtLeast(0L)
@@ -324,14 +333,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                 "Jewellery" -> "Crafting, enchanting and complete chains"
                                 "Teleport Tablets" -> "Rune costs and tablet margins"
                                 "Magic Processing" -> "Tan Leather, Plank Make and spells"
-                                "Other Processing" -> "Unfinished potions, grinding, keys and more"
-                                else -> "Bloodwood sap and seeking arrow profit margins"
+                                else -> "Unfinished potions, grinding, keys and more"
                             }, when (selected) {
                                 "Jewellery" -> "Gold_ring.png"
                                 "Teleport Tablets" -> "Varrock_teleport.png"
                                 "Magic Processing" -> "Nature_rune.png"
-                                "Other Processing" -> "Crushed_nest.png"
-                                else -> "Redwood_logs.png"
+                                else -> "Crushed_nest.png"
                             }) { category = selected; query = ""; view = "recipes" }
                         }
                     }
@@ -373,6 +380,16 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     }
                 }
                 "methods" -> {
+                    if (selectedCatalogCategory == "Skilling") {
+                        item {
+                            Text("BLOODWOOD & SKILLING CALCULATORS", color = MoneyGold,
+                                fontWeight = FontWeight.Bold)
+                        }
+                        items(evaluated.filter { it.recipe.category == "Gathering & Skilling" },
+                            key = { "skilling_" + it.recipe.name }) { evaluation ->
+                            MoneyRecipeRow(evaluation) { selectRecipe(evaluation) }
+                        }
+                    }
                     item { Text("WIKI MONEY-MAKING DIRECTORY", color = MoneyGold, fontWeight = FontWeight.Bold) }
                     item {
                         MoneyNotice("All methods display natively. Hourly estimates are Wiki-derived and can be outdated. " +
@@ -413,6 +430,29 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world. " +
                         "Only shops and items paid for with coins are eligible for GP profit rankings."
                     ) }
+                    if (!showAllShopDirectory) item {
+                        Text("GE LIQUIDITY FILTER (24H)", color = MoneyGold,
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            listOf(1000, 5000, 20000).forEach { volume ->
+                                OutlinedButton(
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                                    onClick = { minDailyShopVolume = volume }
+                                ) {
+                                    Text(
+                                        when (volume) {
+                                            1000 -> "1k+"
+                                            5000 -> "5k+"
+                                            else -> "20k+"
+                                        },
+                                        color = if (minDailyShopVolume == volume) MoneyGold else MoneyParchment,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
                     item {
                         TextButton(onClick = { showAllShopDirectory = !showAllShopDirectory }) {
                             Text(if (showAllShopDirectory) "Show profit rankings" else "Browse all shops (including other currencies)",
@@ -469,11 +509,19 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                     shop.profitableItems.any { it.row.item.contains(query, true) })
                         }
                         item {
-                            Text("${numbered.size} profitable shops • ranked by strongest item",
+                            Text("${numbered.size} liquid, profitable shops • ranked by standout GP/item",
                                 color = MoneyGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (market?.daily?.isNotEmpty() == true)
+                                    "Minimum ${gp(minDailyShopVolume.toLong())} GE units / 24h, plus hourly trading and a fresh sell quote."
+                                else "24h GE volume unavailable: using stricter hourly activity instead.",
+                                color = MoneyParchment, fontSize = 11.sp
+                            )
                         }
                         items(numbered, key = { "ranked" + it.value.detail.title }) { indexed ->
-                            MoneyRankedShopCard(indexed.index + 1, indexed.value) {
+                            MoneyRankedShopCard(indexed.index + 1, indexed.value,
+                                dailyVolume = indexed.value.standout?.item?.id?.let { market?.daily?.get(it)?.volume },
+                                hourlyVolume = indexed.value.standout?.item?.id?.let { market?.hourly?.get(it)?.volume }) {
                                 selectedShop = indexed.value.detail.title
                                 view = "shop"
                             }
@@ -485,11 +533,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         }
                         if (unprofitable.isNotEmpty()) {
                             item {
-                                Text("OTHER SHOPS • NO VERIFIED POSITIVE MARGIN",
+                                Text("OTHER SHOPS • NO LIQUID PROFITABLE STANDOUT",
                                     color = MoneyParchment, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                             items(unprofitable, key = { "unranked" + it.detail.title }) { shop ->
-                                MoneyTextTile(shop.detail.title, "No confirmed profitable standout • view stock") {
+                                MoneyTextTile(shop.detail.title,
+                                    "No item meets the profit and GE-volume criteria • view stock") {
                                     selectedShop = shop.detail.title
                                     view = "shop"
                                 }
@@ -579,6 +628,10 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         item { Text(e.recipe.name, color = MoneyGold, fontWeight = FontWeight.Bold, fontSize = 20.sp) }
                         item { MoneyNotice(e.recipe.requirements.ifBlank { "No specific requirements recorded" }) }
                         item { MoneyItemPriceLink(e.recipe.output, e.outputItem, 34.dp) }
+                        item {
+                            MoneyLabeledPrice("GE instant-sell quote",
+                                e.outputSellQuote?.toLong())
+                        }
                         item { MoneyLabeledPrice("Materials and fees", e.inputCost) }
                         item { MoneyLabeledPrice("Sale value after tax", e.sellValue) }
                         item { MoneyLabeledPrice("Profit per batch", e.profit) }
@@ -758,6 +811,11 @@ private fun MoneyRecipeRow(entry: MoneyEvaluation, onClick: () -> Unit) {
                     }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text(entry.gpHour?.let { gp(it) + "/hr" } ?: "per batch",
                     color = MoneyParchment, fontSize = 10.sp)
+                if (entry.recipe.category == "Teleport Tablets") {
+                    Text(entry.outputSellQuote?.let { "GE sell: " + gp(it.toLong()) }
+                        ?: "No tradeable GE quote",
+                        color = MoneyParchment, fontSize = 10.sp)
+                }
             }
         }
     }
@@ -802,7 +860,9 @@ private fun MoneyLabeledPrice(label: String, number: Long?) {
 
 
 @Composable
-private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit) {
+private fun MoneyRankedShopCard(rank: Int, shop: RankedShop,
+                                dailyVolume: Long?, hourlyVolume: Long?,
+                                onClick: () -> Unit) {
     val best = shop.standout ?: return
     val net = best.netUnitProfit ?: return
     val risky = best.flags.any {
@@ -842,6 +902,11 @@ private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit
                             " GP • GE " + (best.geSellPrice?.let { gp(it.toLong()) } ?: "?") +
                             " GP • stock " + best.row.stock,
                         color = MoneyParchment, fontSize = 11.sp
+                    )
+                    Text(
+                        "GE volume: " + (dailyVolume?.let { gp(it) + " / 24h" } ?: "24h unavailable") +
+                            " • " + (hourlyVolume?.let { gp(it) + " / 1h" } ?: "1h unavailable"),
+                        color = MoneyGreen, fontSize = 10.sp
                     )
                 }
             }

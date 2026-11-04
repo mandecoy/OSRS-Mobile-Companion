@@ -2,6 +2,17 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.5
+
+### Correct tablet prices and shop liquidity
+- Match all 46 Magic tablet outputs to actual OSRS Wiki GE market-mapping names, including the 37 with "(tablet)" and nine tradeable items with unsuffixed names. Confirmed all 46 against live /mapping and /latest endpoints.
+- Show GE instant-sell quotes directly on tablet cards and recipe details. Preserve known ingredient costs when an output trade quote is absent. For untradeable Arceuus dark essence inputs, show the output's sell quote without inventing a complete profit.
+- Move seeking-arrow/bloodwood calculators under Gathering & Skilling. Remove the standalone Bloodwood category from the Money Making home screen.
+- Shop Profits now requires liquid, fresh GE quotes before an item can become a shop's standout product. Default criteria: **5,000+ units traded in 24h and 100+ units in 1h**, last instant-sell trade no older than 6 hours.
+- Add selectable 1,000, 5,000 and 20,000 units/24h volume thresholds. If the 24h data service is unavailable, use a conservative hourly-volume fallback.
+- Show GE 24-hour and 1-hour volume for each standout item. Preserve per-item profit ranking only among eligible liquid opportunities and keep nonqualifying shops in the accessible directory.
+- Test canonical tablet quote calculation, available costs with missing output quotes, stale/illiquid outlier rejection, and skilling placement.
+
 ## 0.7.4
 
 ### Money Making links, icons, tablets, jewellery and bird nests
