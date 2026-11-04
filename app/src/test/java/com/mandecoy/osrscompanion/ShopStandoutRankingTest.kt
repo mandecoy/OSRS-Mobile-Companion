@@ -115,4 +115,35 @@ class ShopStandoutRankingTest {
         assertTrue(ShopRankings.isExcludedItem("Numulite"))
         assertTrue(ShopRankings.isExcludedItem("Tokkul"))
     }
+
+    @Test fun coinShopWithMixedPaymentCurrenciesOnlyRanksActualCoinRows() {
+        val shop = WikiShopDetail("Mixed payments", "Varrock", "", listOf(
+            row("Mixed payments", "One", 500),
+            row("Mixed payments", "Fourth", 1).copy(currency = "other"),
+            row("Mixed payments", "Three", 1).copy(currency = "unknown")
+        ), currency = "coins")
+        val evaluation = ShopRankings.evaluate(listOf(shop), snapshot(), now).single()
+        assertEquals("One", evaluation.standout?.row?.item)
+        assertEquals(1, evaluation.profitableCount)
+        assertEquals(480L, evaluation.standoutProfit)
+    }
+
+    @Test fun otherwiseNormalShopWithUnknownCurrencyNeverRanks() {
+        val unknown = WikiShopDetail("Looks like a normal shop", "Falador", "",
+            listOf(row("Looks like a normal shop", "Fourth", 1)), currency = "unknown")
+        val other = WikiShopDetail("Barbarian points store", "Varrock", "",
+            listOf(row("Barbarian points store", "Fourth", 1)), currency = "other")
+        val evaluations = ShopRankings.evaluate(listOf(unknown, other), snapshot(), now)
+        assertTrue(evaluations.all { it.standout == null })
+        assertTrue(ShopRankings.isSpecialCurrencyShop(unknown))
+        assertTrue(ShopRankings.isSpecialCurrencyShop(other))
+    }
+
+    @Test fun standaloneGpProfitEngineDoesNotValuePointsAsCoins() {
+        val pointsRow = row("Mixed", "Fourth", 1).copy(currency = "other")
+        val unknownRow = row("Mixed", "Fourth", 1).copy(currency = "unknown")
+        assertNull(MoneyProfitCalculator.shop(pointsRow, snapshot(), now).netUnitProfit)
+        assertNull(MoneyProfitCalculator.shop(unknownRow, snapshot(), now).netUnitProfit)
+    }
+
 }
