@@ -27,7 +27,8 @@ data class MoneyEvaluation(
     val gpHour: Long?,
     val flags: List<String>,
     val outputItem: MarketItem?,
-    val maximumFourHourBatches: Long?
+    val maximumFourHourBatches: Long?,
+    val outputSellQuote: Int? = null
 )
 
 data class MoneyShopEvaluation(
@@ -219,7 +220,7 @@ object MoneyProfitCalculator {
         if (!recipe.verifiedMaterials) {
             return MoneyEvaluation(recipe, null, sellGp, null, null,
                 listOf("Untradeable ingredient: sell quote shown, but total profit cannot be calculated"),
-                output, null)
+                output, null, outputPrice?.low)
         }
         val missing = mutableListOf<String>()
         val missingInputs = mutableListOf<String>()
@@ -257,7 +258,7 @@ object MoneyProfitCalculator {
         }.minOrNull()
         return MoneyEvaluation(recipe, costGp, sellGp, profit,
             if (profit != null && recipe.actionsPerHour != null) profit * recipe.actionsPerHour else null,
-            flags, output, fourHour)
+            flags, output, fourHour, outputPrice?.low)
     }
 
     fun shop(row: WikiShopStock, snapshot: MarketSnapshot, now: Long = System.currentTimeMillis()): MoneyShopEvaluation {
