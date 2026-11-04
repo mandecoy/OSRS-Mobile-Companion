@@ -61,7 +61,9 @@ fun MoneyItemPriceLink(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        if (showIcon) WikiIcon(MoneyMarketLinks.iconUrl(item, label), label, iconSize)
+        // No fabricated sprite for untradeable/unmapped inputs: the Wiki
+        // filename might be different and would display a launcher icon.
+        if (showIcon && item != null) WikiIcon(MoneyMarketLinks.iconUrl(item, label), label, iconSize)
         Text(label, color = if (item == null) Color(0xffd7c7a4) else Color(0xffd7a93f),
             fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         if (item != null) Text("↗ Prices", color = Color(0xffd7a93f), fontSize = 10.sp)
