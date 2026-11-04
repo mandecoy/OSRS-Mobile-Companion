@@ -2,7 +2,7 @@ name: Refresh OSRS Shop Catalog
 
 on:
   push:
-    branches: ["main", "feature/0.7.1-shop-standouts"]
+    branches: ["main", "hotfix/0.7.3-coins-only-shops"]
     paths:
       - "scripts/build_shop_catalog.py"
       - ".github/workflows/shop-catalog.yml"
@@ -25,19 +25,19 @@ jobs:
       - name: Install catalog builder dependencies
         run: pip install 'requests>=2.31,<3' 'beautifulsoup4>=4.12,<5'
       - name: Fetch Wiki shop directory and stock tables
-        run: python scripts/build_shop_catalog.py --output docs/shop-catalog-v1.json --workers 3
+        run: python scripts/build_shop_catalog.py --output docs/shop-catalog-v2.json --workers 3
       - name: Upload catalog verification artifact
         uses: actions/upload-artifact@v4
         with:
           name: wiki-shop-catalog
-          path: docs/shop-catalog-v1.json
+          path: docs/shop-catalog-v2.json
           retention-days: 14
       - name: Publish index on main
         if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/shop-catalog-v1.json
+          git add docs/shop-catalog-v2.json
           if ! git diff --cached --quiet; then
             git commit -m "data: refresh indexed OSRS Wiki shops"
             git push
