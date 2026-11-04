@@ -741,9 +741,9 @@ private fun MoneyRecipeRow(entry: MoneyEvaluation, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MoneyStone)) {
         Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MoneyItemPriceLink(entry.recipe.output, entry.outputItem, 30.dp)
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(entry.recipe.name, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                MoneyItemPriceLink(entry.recipe.output, entry.outputItem, 23.dp)
                 Text(entry.recipe.category + " · " +
                     (if (entry.flags.any { it.contains("Stale") || it.contains("volume") }) "Check liquidity" else "GE quote"),
                     color = MoneyParchment, fontSize = 10.sp)
