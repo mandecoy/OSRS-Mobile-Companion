@@ -105,6 +105,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
     var shopError by remember { mutableStateOf("") }
     var selectedCatalogCategory by remember { mutableStateOf("All") }
     var onlyReliable by remember { mutableStateOf(false) }
+    var minDailyShopVolume by remember { mutableIntStateOf(5000) }
     var favoritesVersion by remember { mutableIntStateOf(0) }
     val favorites = remember(favoritesVersion) { MoneyFavorites.all(context) }
     val recipes = remember { MoneyRecipeCatalog.all() }
@@ -227,11 +228,18 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     .thenByDescending { it.profit ?: Long.MIN_VALUE })
         }.orEmpty()
     }
-    val rankedShops = remember(shopCatalog, market) {
+    val rankedShops = remember(shopCatalog, market, minDailyShopVolume) {
         val catalog = shopCatalog
         val prices = market
         if (catalog != null && prices != null) {
-            ShopRankings.evaluate(catalog.shops, prices)
+            val hourMinimum = when (minDailyShopVolume) {
+                1000 -> 25L
+                20000 -> 200L
+                else -> 100L
+            }
+            ShopRankings.evaluate(catalog.shops, prices,
+                minDailyVolume = minDailyShopVolume.toLong(),
+                minHourlyVolume = hourMinimum)
         } else emptyList()
     }
     val bank = bankInput.replace(",", "").trim().toLongOrNull()?.coerceAtLeast(0L)
@@ -421,6 +429,29 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world. " +
                         "Only shops and items paid for with coins are eligible for GP profit rankings."
                     ) }
+                    if (!showAllShopDirectory) item {
+                        Text("GE LIQUIDITY FILTER (24H)", color = MoneyGold,
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            listOf(1000, 5000, 20000).forEach { volume ->
+                                OutlinedButton(
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                                    onClick = { minDailyShopVolume = volume }
+                                ) {
+                                    Text(
+                                        when (volume) {
+                                            1000 -> "1k+"
+                                            5000 -> "5k+"
+                                            else -> "20k+"
+                                        },
+                                        color = if (minDailyShopVolume == volume) MoneyGold else MoneyParchment,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
                     item {
                         TextButton(onClick = { showAllShopDirectory = !showAllShopDirectory }) {
                             Text(if (showAllShopDirectory) "Show profit rankings" else "Browse all shops (including other currencies)",
@@ -477,11 +508,15 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                     shop.profitableItems.any { it.row.item.contains(query, true) })
                         }
                         item {
-                            Text("${numbered.size} profitable shops • ranked by strongest item",
+                            Text("${numbered.size} liquid, profitable shops • ranked by standout GP/item",
                                 color = MoneyGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Minimum ${gp(minDailyShopVolume.toLong())} GE units / 24h, with recent hourly activity and a fresh sell quote.",
+                                color = MoneyParchment, fontSize = 11.sp)
                         }
                         items(numbered, key = { "ranked" + it.value.detail.title }) { indexed ->
-                            MoneyRankedShopCard(indexed.index + 1, indexed.value) {
+                            MoneyRankedShopCard(indexed.index + 1, indexed.value,
+                                dailyVolume = market?.daily?.get(indexed.value.standout?.item?.id)?.volume,
+                                hourlyVolume = market?.hourly?.get(indexed.value.standout?.item?.id)?.volume) {
                                 selectedShop = indexed.value.detail.title
                                 view = "shop"
                             }
@@ -493,11 +528,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         }
                         if (unprofitable.isNotEmpty()) {
                             item {
-                                Text("OTHER SHOPS • NO VERIFIED POSITIVE MARGIN",
+                                Text("OTHER SHOPS • NO LIQUID PROFITABLE STANDOUT",
                                     color = MoneyParchment, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                             items(unprofitable, key = { "unranked" + it.detail.title }) { shop ->
-                                MoneyTextTile(shop.detail.title, "No confirmed profitable standout • view stock") {
+                                MoneyTextTile(shop.detail.title,
+                                    "No item meets the profit and GE-volume criteria • view stock") {
                                     selectedShop = shop.detail.title
                                     view = "shop"
                                 }
@@ -810,7 +846,9 @@ private fun MoneyLabeledPrice(label: String, number: Long?) {
 
 
 @Composable
-private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit) {
+private fun MoneyRankedShopCard(rank: Int, shop: RankedShop,
+                                dailyVolume: Long?, hourlyVolume: Long?,
+                                onClick: () -> Unit) {
     val best = shop.standout ?: return
     val net = best.netUnitProfit ?: return
     val risky = best.flags.any {
@@ -850,6 +888,11 @@ private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit
                             " GP • GE " + (best.geSellPrice?.let { gp(it.toLong()) } ?: "?") +
                             " GP • stock " + best.row.stock,
                         color = MoneyParchment, fontSize = 11.sp
+                    )
+                    Text(
+                        "GE volume: " + (dailyVolume?.let { gp(it) + " / 24h" } ?: "24h unavailable") +
+                            " • " + (hourlyVolume?.let { gp(it) + " / 1h" } ?: "1h unavailable"),
+                        color = MoneyGreen, fontSize = 10.sp
                     )
                 }
             }
