@@ -70,7 +70,7 @@ private object MoneyFavorites {
 }
 
 private val moneyCategories = listOf(
-    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing", "Bloodwood & Skilling"
+    "Jewellery", "Teleport Tablets", "Magic Processing", "Other Processing"
 )
 
 @Composable
@@ -324,14 +324,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                                 "Jewellery" -> "Crafting, enchanting and complete chains"
                                 "Teleport Tablets" -> "Rune costs and tablet margins"
                                 "Magic Processing" -> "Tan Leather, Plank Make and spells"
-                                "Other Processing" -> "Unfinished potions, grinding, keys and more"
-                                else -> "Bloodwood sap and seeking arrow profit margins"
+                                else -> "Unfinished potions, grinding, keys and more"
                             }, when (selected) {
                                 "Jewellery" -> "Gold_ring.png"
                                 "Teleport Tablets" -> "Varrock_teleport.png"
                                 "Magic Processing" -> "Nature_rune.png"
-                                "Other Processing" -> "Crushed_nest.png"
-                                else -> "Redwood_logs.png"
+                                else -> "Crushed_nest.png"
                             }) { category = selected; query = ""; view = "recipes" }
                         }
                     }
@@ -373,6 +371,16 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     }
                 }
                 "methods" -> {
+                    if (selectedCatalogCategory == "Skilling") {
+                        item {
+                            Text("BLOODWOOD & SKILLING CALCULATORS", color = MoneyGold,
+                                fontWeight = FontWeight.Bold)
+                        }
+                        items(evaluated.filter { it.recipe.category == "Gathering & Skilling" },
+                            key = { "skilling_" + it.recipe.name }) { evaluation ->
+                            MoneyRecipeRow(evaluation) { selectRecipe(evaluation) }
+                        }
+                    }
                     item { Text("WIKI MONEY-MAKING DIRECTORY", color = MoneyGold, fontWeight = FontWeight.Bold) }
                     item {
                         MoneyNotice("All methods display natively. Hourly estimates are Wiki-derived and can be outdated. " +
