@@ -149,6 +149,13 @@ object MoneyRecipeCatalog {
                 notes = "Profit per product only. Hourly rate depends on actual processing speed.",
                 source = "Money_making_guide/Processing")
         }
+        recipes += MoneyRecipe("Crush bird nests at Wesley (Nardah)",
+            "Other Processing", "Crushed nest",
+            listOf(MoneyIngredient("Bird nest (empty)")), coinFee = 50L,
+            actionsPerHour = null, requirements = "Visit Wesley in Nardah",
+            notes = "Wesley charges 50 coins per nest to crush noted or unnoted nests. " +
+                "This is a per-item margin, not a reliable per-hour rate.",
+            source = "Crushed_nest")
         // Untradeable sap cannot be purchased, so only the material margin is
         // calculated; real profit/hour is shown in the Wiki method catalogue.
         listOf("Rune", "Amethyst", "Dragon").forEach { type ->
