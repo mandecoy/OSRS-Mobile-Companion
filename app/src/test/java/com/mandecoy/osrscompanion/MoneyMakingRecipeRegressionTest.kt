@@ -34,6 +34,30 @@ class MoneyMakingRecipeRegressionTest {
         assertEquals(listOf("Bird nest (empty)"), crush.inputs.map { it.item })
     }
 
+    @Test fun allWikiMagicTabletRecipesAreAvailable() {
+        val tablets = MagicTabletCatalog.all()
+        assertEquals(46, tablets.size)
+        assertEquals(46, tablets.map { it.output }.distinct().size)
+        assertTrue(tablets.all { it.category == "Teleport Tablets" })
+        val barrows = tablets.single { it.output == "Barrows teleport" }
+        assertTrue(barrows.inputs.any { it.item == "Blood rune" && it.quantity == 1.0 })
+        assertTrue(barrows.inputs.any { it.item == "Law rune" && it.quantity == 2.0 })
+        val varrock = tablets.single { it.output == "Varrock teleport" }
+        assertTrue(varrock.inputs.any { it.item == "Soft clay" && it.quantity == 1.0 })
+        val ice = tablets.single { it.output == "Ice plateau teleport" }
+        assertTrue(ice.inputs.any { it.item == "Water rune" && it.quantity == 8.0 })
+        val arceuus = tablets.single { it.output == "Arceuus library teleport" }
+        assertFalse(arceuus.verifiedMaterials)
+        assertTrue(arceuus.inputs.any { it.item == "Dark essence block" })
+    }
+
+    @Test fun wesleyNestCrushingIncludesServiceFee() {
+        val wesley = recipes.single { it.name == "Crush bird nests at Wesley (Nardah)" }
+        assertEquals(50L, wesley.coinFee)
+        assertEquals("Bird nest (empty)", wesley.inputs.single().item)
+        assertEquals("Crushed nest", wesley.output)
+    }
+
     @Test fun pricesLinkUsesExactGeItemId() {
         assertEquals("https://prices.runescape.wiki/osrs/item/5075",
             MoneyMarketLinks.priceUrl(5075))
