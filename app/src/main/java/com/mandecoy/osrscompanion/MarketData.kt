@@ -27,7 +27,8 @@ data class MarketItem(
     val id: Int,
     val name: String,
     val limit: Int?,
-    val highAlch: Int?
+    val highAlch: Int?,
+    val icon: String? = null
 )
 
 data class LatestPrice(
@@ -131,7 +132,8 @@ object MarketApi {
                 id = row.getInt("id"),
                 name = row.getString("name"),
                 limit = nullableInt(row, "limit"),
-                highAlch = nullableInt(row, "highalch")
+                highAlch = nullableInt(row, "highalch"),
+                icon = row.optString("icon").takeIf { it.isNotBlank() }
             )
         }.sortedBy { it.name.lowercase() }
     }
