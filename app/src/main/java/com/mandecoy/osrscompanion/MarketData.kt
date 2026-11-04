@@ -51,7 +51,8 @@ data class MarketSnapshot(
     val items: List<MarketItem>,
     val latest: Map<Int, LatestPrice>,
     val hourly: Map<Int, HourPrice>,
-    val fetchedAt: Long
+    val fetchedAt: Long,
+    val daily: Map<Int, HourPrice> = emptyMap()
 )
 
 data class HistoryPoint(
@@ -79,7 +80,12 @@ object MarketApi {
         } catch (_: Exception) {
             emptyMap()
         }
-        return MarketSnapshot(mapping, latest, hourly, System.currentTimeMillis())
+        val daily = try {
+            parseHourly(fetchText(BASE + "/24h"))
+        } catch (_: Exception) {
+            emptyMap()
+        }
+        return MarketSnapshot(mapping, latest, hourly, System.currentTimeMillis(), daily)
     }
 
     fun loadLatestOnly(): Map<Int, LatestPrice> =
