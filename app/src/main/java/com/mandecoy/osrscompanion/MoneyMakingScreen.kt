@@ -511,8 +511,12 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         item {
                             Text("${numbered.size} liquid, profitable shops • ranked by standout GP/item",
                                 color = MoneyGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text("Minimum ${gp(minDailyShopVolume.toLong())} GE units / 24h, with recent hourly activity and a fresh sell quote.",
-                                color = MoneyParchment, fontSize = 11.sp)
+                            Text(
+                                if (market?.daily?.isNotEmpty() == true)
+                                    "Minimum ${gp(minDailyShopVolume.toLong())} GE units / 24h, plus hourly trading and a fresh sell quote."
+                                else "24h GE volume unavailable: using stricter hourly activity instead.",
+                                color = MoneyParchment, fontSize = 11.sp
+                            )
                         }
                         items(numbered, key = { "ranked" + it.value.detail.title }) { indexed ->
                             MoneyRankedShopCard(indexed.index + 1, indexed.value,
@@ -624,6 +628,10 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         item { Text(e.recipe.name, color = MoneyGold, fontWeight = FontWeight.Bold, fontSize = 20.sp) }
                         item { MoneyNotice(e.recipe.requirements.ifBlank { "No specific requirements recorded" }) }
                         item { MoneyItemPriceLink(e.recipe.output, e.outputItem, 34.dp) }
+                        item {
+                            MoneyLabeledPrice("GE instant-sell quote",
+                                e.outputSellQuote?.toLong())
+                        }
                         item { MoneyLabeledPrice("Materials and fees", e.inputCost) }
                         item { MoneyLabeledPrice("Sale value after tax", e.sellValue) }
                         item { MoneyLabeledPrice("Profit per batch", e.profit) }
@@ -803,6 +811,11 @@ private fun MoneyRecipeRow(entry: MoneyEvaluation, onClick: () -> Unit) {
                     }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text(entry.gpHour?.let { gp(it) + "/hr" } ?: "per batch",
                     color = MoneyParchment, fontSize = 10.sp)
+                if (entry.recipe.category == "Teleport Tablets") {
+                    Text(entry.outputSellQuote?.let { "GE sell: " + gp(it.toLong()) }
+                        ?: "No tradeable GE quote",
+                        color = MoneyParchment, fontSize = 10.sp)
+                }
             }
         }
     }
