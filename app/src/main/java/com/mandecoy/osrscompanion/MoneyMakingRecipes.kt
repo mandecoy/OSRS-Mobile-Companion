@@ -15,7 +15,8 @@ data class MoneyRecipe(
     val actionsPerHour: Int? = null,
     val requirements: String = "",
     val notes: String = "",
-    val source: String = ""
+    val source: String = "",
+    val verifiedMaterials: Boolean = true
 )
 
 data class MoneyEvaluation(
@@ -45,12 +46,23 @@ object MoneyRecipeCatalog {
         for (gem in gems) {
             for (kind in types) {
                 val base = "$gem $kind"
-                val ingredients = mutableListOf(MoneyIngredient("Gold bar"), MoneyIngredient(gem))
-                if (kind == "amulet") ingredients += MoneyIngredient("Ball of wool")
-                recipes += MoneyRecipe("Craft $base", "Jewellery", base, ingredients,
-                    actionsPerHour = 900, requirements = "Crafting level varies by gem and jewellery type",
-                    notes = "Amulets include a ball of wool for stringing. Crafting speed is a planning assumption.",
+                val ingredients = listOf(MoneyIngredient("Gold bar"), MoneyIngredient(gem))
+                val crafted = if (kind == "amulet") "$base (u)" else base
+                recipes += MoneyRecipe("Craft $crafted", "Jewellery", crafted, ingredients,
+                    actionsPerHour = 1400, requirements = "Crafting level varies by gem and jewellery type",
+                    notes = "One furnace action produces the unstrung amulet. Stringing is calculated separately.",
                     source = "Jewellery")
+                if (kind == "amulet") {
+                    recipes += MoneyRecipe("String $base", "Jewellery", base,
+                        listOf(MoneyIngredient("$base (u)"), MoneyIngredient("Ball of wool")),
+                        actionsPerHour = null,
+                        notes = "Stringing converts an unstrung amulet into a wearable amulet.",
+                        source = "Jewellery")
+                    recipes += MoneyRecipe("Craft + string $base", "Jewellery", base,
+                        ingredients + MoneyIngredient("Ball of wool"),
+                        actionsPerHour = null, notes = "Two-stage crafting plus stringing; no assumed hourly rate.",
+                        source = "Jewellery")
+                }
             }
         }
         data class EnchantTier(
@@ -78,34 +90,19 @@ object MoneyRecipeCatalog {
                 recipes += MoneyRecipe("Enchant $input", "Jewellery", output,
                     listOf(MoneyIngredient(input)) + tier.runes,
                     actionsPerHour = 1200, requirements = tier.required,
-                    notes = "Assumes full-dose/full-charge output exists on the GE; confirm charge state.",
+                    notes = "Uses a strung amulet if enchanting amulets. Some charge states and quest-locked items may not be marketable.",
                     source = "Jewellery_Enchantments")
                 val materials = mutableListOf(MoneyIngredient("Gold bar"), MoneyIngredient(tier.gem))
                 if (kind == "amulet") materials += MoneyIngredient("Ball of wool")
                 recipes += MoneyRecipe("Craft + enchant $input", "Jewellery", output,
                     materials + tier.runes, actionsPerHour = null,
                     requirements = "Crafting level varies; " + tier.required,
-                    notes = "Full chain includes bar, gem, string (for amulets) and enchantment runes. Hourly speed not assumed.",
+                    notes = "Complete multi-step chain including stringing amulets; no assumed hourly rate.",
                     source = "Jewellery")
             }
         }
 
-        val tablets = listOf(
-            Triple("Varrock teleport", 25, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Fire rune"), MoneyIngredient("Law rune"))),
-            Triple("Lumbridge teleport", 31, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Earth rune"), MoneyIngredient("Law rune"))),
-            Triple("Falador teleport", 37, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Water rune"), MoneyIngredient("Law rune"))),
-            Triple("Camelot teleport", 45, listOf(MoneyIngredient("Air rune", 5.0), MoneyIngredient("Law rune"))),
-            Triple("Ardougne teleport", 51, listOf(MoneyIngredient("Water rune", 2.0), MoneyIngredient("Law rune", 2.0))),
-            Triple("Teleport to house", 40, listOf(MoneyIngredient("Air rune"), MoneyIngredient("Earth rune"), MoneyIngredient("Law rune")))
-        )
-        tablets.forEach { (name, level, runes) ->
-            val output = if (name == "Teleport to house") "Teleport to house" else name
-            recipes += MoneyRecipe("Create $name tablet", "Teleport Tablets", output,
-                runes + MoneyIngredient("Soft clay"), actionsPerHour = 1000,
-                requirements = "$level Magic; correct lectern and spellbook",
-                notes = "Assumes no rune-saving staff, no butler cost, and 1 tablet per set of runes.",
-                source = "Magic_tablet")
-        }
+        recipes += MagicTabletCatalog.all()
 
         val hides = listOf(
             "Cowhide" to "Leather", "Green dragonhide" to "Green dragon leather",
@@ -140,7 +137,7 @@ object MoneyRecipeCatalog {
         }
 
         listOf(
-            Triple("Crush bird nests", "Crushed nest", listOf(MoneyIngredient("Bird nest"))),
+            Triple("Crush empty bird nests", "Crushed nest", listOf(MoneyIngredient("Bird nest (empty)"))),
             Triple("Grind unicorn horns", "Unicorn horn dust", listOf(MoneyIngredient("Unicorn horn"))),
             Triple("Grind goat horns", "Goat horn dust", listOf(MoneyIngredient("Goat horn"))),
             Triple("Grind chocolate bars", "Chocolate dust", listOf(MoneyIngredient("Chocolate bar"))),
@@ -152,6 +149,13 @@ object MoneyRecipeCatalog {
                 notes = "Profit per product only. Hourly rate depends on actual processing speed.",
                 source = "Money_making_guide/Processing")
         }
+        recipes += MoneyRecipe("Crush bird nests at Wesley (Nardah)",
+            "Other Processing", "Crushed nest",
+            listOf(MoneyIngredient("Bird nest (empty)")), coinFee = 50L,
+            actionsPerHour = null, requirements = "Visit Wesley in Nardah",
+            notes = "Wesley charges 50 coins per nest to crush noted or unnoted nests. " +
+                "This is a per-item margin, not a reliable per-hour rate.",
+            source = "Crushed_nest")
         // Untradeable sap cannot be purchased, so only the material margin is
         // calculated; real profit/hour is shown in the Wiki method catalogue.
         listOf("Rune", "Amethyst", "Dragon").forEach { type ->
@@ -207,6 +211,11 @@ object MoneyProfitCalculator {
      * outputs use instant-sell low. Missing price means no margin.
      */
     fun evaluate(recipe: MoneyRecipe, snapshot: MarketSnapshot, now: Long = System.currentTimeMillis()): MoneyEvaluation {
+        if (!recipe.verifiedMaterials) {
+            return MoneyEvaluation(recipe, null, null, null, null,
+                listOf("Untradeable ingredient: no reliable GP profit estimate"),
+                lookup(snapshot, recipe.output), null)
+        }
         val output = lookup(snapshot, recipe.output)
         val outputPrice = output?.let { snapshot.latest[it.id] }
         val missing = mutableListOf<String>()

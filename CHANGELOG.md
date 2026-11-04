@@ -2,6 +2,17 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.4
+
+### Money Making links, icons, tablets, jewellery and bird nests
+- Link the standout shop item, additional profitable stock items, full shop inventory items, recipe outputs and ingredient names to their individual OSRS Wiki Prices page using the exact GE item ID.
+- Use ID-based RuneLite item sprites rather than guessed Wiki icon filenames for mapped tradeable items; avoid displaying fabricated/incorrect item sprites for unmapped inputs.
+- Replace six teleport-tablet recipes with all **46 tablets** from the OSRS Wiki Magic tablet materials table, including Standard, Arceuus, Ancient and Lunar options with accurate listed ingredients and magic-level requirements.
+- Do not invent an Arceuus tablet profit when the recipe requires untradeable dark essence blocks, or invent tablet hourly throughput without timing data.
+- Correct jewellery crafting so the furnace produces unstrung amulets; provide separate stringing, craft-and-string, enchant, and craft-through-enchant calculations.
+- Correct bird nest processing to use **Bird nest (empty)** as the tradeable input, and offer both manual crushing and Wesley's Nardah service with a 50-coin charge.
+- Add regression tests for tablet coverage and ingredient quantities, jewellery amulet stages, bird nest processing and direct item-ID price links.
+
 ## 0.7.3
 
 ### Coin-only shop profitability
