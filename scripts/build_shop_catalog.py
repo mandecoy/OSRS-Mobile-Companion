@@ -87,13 +87,13 @@ OTHER_CURRENCIES = (
     "mermaid's tear", "mole claws", "mole skins", "mole claw", "mole skin",
     "wintertodt points", "bounty hunter points", "favour points",
     "favor points", "brimhaven tickets", "forestry bark", "reward tokens",
-    "token points", "pearls", "reward vouchers", "mastering mixology points",
+    "token points", "pearls", "reward vouchers", "mastering mixology points", "unidentified minerals", "mineral points",
 )
 
 # These generic shop types are often not GP stores. Treat unverified prices
 # conservatively rather than falsely showing them as profitable GP arbitrage.
 SPECIAL_SHOP_TITLE = re.compile(
-    r"\b(?:rewards?|ticket exchange|ore exchange|nugget shop|"
+    r"\b(?:rewards?|ticket exchange|ore exchange|mineral exchange|nugget shop|"
     r"forestry shop|token shop|point shop|point store|"
     r"commendation shop|mark exchange|mark shop|currency exchange)\b",
     re.IGNORECASE,
@@ -102,6 +102,10 @@ SPECIAL_SHOP_TITLE = re.compile(
 
 def currency_from_page(title, intro):
     summary = (title + " " + intro).lower()
+    # A few genuine coin shops mention noncoin currencies only as part
+    # of an optional banking route, not as payment for their stock.
+    if "buy raw karambwans from the shop with regular coins" in summary:
+        return "coins"
     if any(word in summary for word in OTHER_CURRENCIES):
         return "other"
     if title.lower().startswith(("tzhaar-", "tzhaar ", "tzhaar'", "mairin's market")):
