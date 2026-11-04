@@ -768,7 +768,7 @@ private fun MoneyShopRow(entry: MoneyShopEvaluation) {
                 Text(entry.row.item, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text("Stock ${entry.row.stock} · Restock ${entry.row.restock}",
                     color = MoneyParchment, fontSize = 10.sp)
-                val specialCurrency = entry.currencyIsUnverified()
+                val specialCurrency = entry.row.currency != "coins"
                 Text((if (specialCurrency) "Shop (non-GP currency): " else "Shop (GP): ") +
                     (entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown") +
                     (if (specialCurrency) "" else " · GE sell: " +
