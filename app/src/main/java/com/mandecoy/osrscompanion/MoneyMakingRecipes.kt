@@ -102,22 +102,7 @@ object MoneyRecipeCatalog {
             }
         }
 
-        val tablets = listOf(
-            Triple("Varrock teleport", 25, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Fire rune"), MoneyIngredient("Law rune"))),
-            Triple("Lumbridge teleport", 31, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Earth rune"), MoneyIngredient("Law rune"))),
-            Triple("Falador teleport", 37, listOf(MoneyIngredient("Air rune", 3.0), MoneyIngredient("Water rune"), MoneyIngredient("Law rune"))),
-            Triple("Camelot teleport", 45, listOf(MoneyIngredient("Air rune", 5.0), MoneyIngredient("Law rune"))),
-            Triple("Ardougne teleport", 51, listOf(MoneyIngredient("Water rune", 2.0), MoneyIngredient("Law rune", 2.0))),
-            Triple("Teleport to house", 40, listOf(MoneyIngredient("Air rune"), MoneyIngredient("Earth rune"), MoneyIngredient("Law rune")))
-        )
-        tablets.forEach { (name, level, runes) ->
-            val output = if (name == "Teleport to house") "Teleport to house" else name
-            recipes += MoneyRecipe("Create $name tablet", "Teleport Tablets", output,
-                runes + MoneyIngredient("Soft clay"), actionsPerHour = 1000,
-                requirements = "$level Magic; correct lectern and spellbook",
-                notes = "Assumes no rune-saving staff, no butler cost, and 1 tablet per set of runes.",
-                source = "Magic_tablet")
-        }
+        recipes += MagicTabletCatalog.all()
 
         val hides = listOf(
             "Cowhide" to "Leather", "Green dragonhide" to "Green dragon leather",
