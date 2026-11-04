@@ -578,6 +578,7 @@ fun MoneyMakingScreen(nav: NavHostController) {
                     selectedRecipe?.let { e ->
                         item { Text(e.recipe.name, color = MoneyGold, fontWeight = FontWeight.Bold, fontSize = 20.sp) }
                         item { MoneyNotice(e.recipe.requirements.ifBlank { "No specific requirements recorded" }) }
+                        item { MoneyItemPriceLink(e.recipe.output, e.outputItem, 34.dp) }
                         item { MoneyLabeledPrice("Materials and fees", e.inputCost) }
                         item { MoneyLabeledPrice("Sale value after tax", e.sellValue) }
                         item { MoneyLabeledPrice("Profit per batch", e.profit) }
@@ -586,7 +587,13 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             Text("Ingredients", color = MoneyGold, fontWeight = FontWeight.Bold)
                         }
                         items(e.recipe.inputs) { ingredient ->
-                            Text("${ingredient.quantity} × ${ingredient.item}", color = MoneyParchment)
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("${ingredient.quantity} ×", color = MoneyParchment)
+                                MoneyItemPriceLink(ingredient.item,
+                                    market?.let { MoneyProfitCalculator.lookup(it, ingredient.item) },
+                                    23.dp)
+                            }
                         }
                         if (e.recipe.coinFee != 0L) item {
                             Text("Coins fee: ${gp(e.recipe.coinFee)} GP", color = MoneyParchment)
@@ -734,8 +741,7 @@ private fun MoneyRecipeRow(entry: MoneyEvaluation, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MoneyStone)) {
         Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WikiIcon(osrsWikiImage(entry.recipe.output.replace(' ', '_') + ".png"),
-                entry.recipe.output, 30.dp)
+            MoneyItemPriceLink(entry.recipe.output, entry.outputItem, 30.dp)
             Column(Modifier.weight(1f)) {
                 Text(entry.recipe.name, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text(entry.recipe.category + " · " +
@@ -763,9 +769,8 @@ private fun MoneyShopRow(entry: MoneyShopEvaluation) {
         modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
-            WikiIcon(osrsWikiImage(entry.row.item.replace(' ', '_') + ".png"), entry.row.item, 28.dp)
             Column(Modifier.weight(1f)) {
-                Text(entry.row.item, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                MoneyItemPriceLink(entry.row.item, entry.item, 28.dp)
                 Text("Stock ${entry.row.stock} · Restock ${entry.row.restock}",
                     color = MoneyParchment, fontSize = 10.sp)
                 val specialCurrency = entry.row.currency != "coins"
@@ -830,11 +835,8 @@ private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit
             }
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WikiIcon(osrsWikiImage(best.row.item.replace(' ', '_') + ".png"),
-                    best.row.item, 30.dp)
                 Column(Modifier.weight(1f)) {
-                    Text("Standout: " + best.row.item, color = MoneyWhite,
-                        fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    MoneyItemPriceLink("Standout: " + best.row.item, best.item, 30.dp)
                     Text(
                         "Shop " + (best.row.basePurchasePrice?.let { gp(it) } ?: "?") +
                             " GP • GE " + (best.geSellPrice?.let { gp(it.toLong()) } ?: "?") +
@@ -847,9 +849,14 @@ private fun MoneyRankedShopCard(rank: Int, shop: RankedShop, onClick: () -> Unit
                 Text(shop.profitableCount.toString() + " profitable items in this shop",
                     color = MoneyGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 if (shop.otherItems.isNotEmpty()) {
-                    Text("Also: " + shop.otherItems.joinToString(" • ") {
-                        it.row.item + " +" + gp(it.netUnitProfit ?: 0L)
-                    }, color = MoneyParchment, fontSize = 11.sp)
+                    shop.otherItems.forEach { additional ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            MoneyItemPriceLink(additional.row.item, additional.item, 20.dp)
+                            Text("+" + gp(additional.netUnitProfit ?: 0L) + " GP/item",
+                                color = MoneyGreen, fontSize = 10.sp)
+                        }
+                    }
                 }
             }
             if (risky) {
