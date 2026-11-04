@@ -411,11 +411,11 @@ fun MoneyMakingScreen(nav: NavHostController) {
                         "Shops are ranked by the NET GP profit of their single standout item, " +
                         "not by how many items they sell. Additional profitable items are highlighted. " +
                         "GE sell prices include tax; shop prices are Wiki base prices and stock varies by world. " +
-                        "Numulite and Tokkul shops are excluded from GP profit rankings."
+                        "Only shops and items paid for with coins are eligible for GP profit rankings."
                     ) }
                     item {
                         TextButton(onClick = { showAllShopDirectory = !showAllShopDirectory }) {
-                            Text(if (showAllShopDirectory) "Show profit rankings" else "Browse all shops (including special currencies)",
+                            Text(if (showAllShopDirectory) "Show profit rankings" else "Browse all shops (including other currencies)",
                                 color = MoneyGold, fontSize = 12.sp)
                         }
                     }
@@ -449,13 +449,13 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             query.isBlank() || it.title.contains(query, true)
                         }.sortedBy { it.title.lowercase() }
                         item {
-                            Text("${allShops.size} shops • alphabetical directory, including Tokkul and Numulite",
+                            Text("${allShops.size} shops • alphabetical directory, including non-GP shops",
                                 color = MoneyParchment, fontSize = 12.sp)
                         }
                         items(allShops, key = { "directory" + it.title }) { shop ->
                             MoneyTextTile(shop.title,
                                 if (ShopRankings.isSpecialCurrencyShop(shop))
-                                    "Special currency • excluded from GP rankings"
+                                    "Non-GP or unverified currency • excluded from GP rankings"
                                 else "View stock →") {
                                 selectedShop = shop.title
                                 view = "shop"
@@ -522,14 +522,14 @@ fun MoneyMakingScreen(nav: NavHostController) {
                             "Profit is for ONE item at that quoted price; no assumed bulk margin.") }
                         val specialCurrency = ShopRankings.isSpecialCurrencyShop(detail)
                         if (specialCurrency) item {
-                            MoneyNotice("This shop uses a special currency, not ordinary GP. " +
-                                "Excluded from profit rankings; listed prices are not coin amounts.")
+                            MoneyNotice("This shop is not confirmed to accept ordinary coins (GP). " +
+                                "Excluded from profit rankings; listed prices must not be treated as GP.")
                         }
                         val evals = market?.let { snap ->
                             detail.stock.map { row ->
                                 if (specialCurrency || ShopRankings.isExcludedItem(row.item)) {
                                     MoneyShopEvaluation(row, null, null, null,
-                                        listOf("Special currency or Numulite/Tokkul item; excluded from GP calculations"))
+                                        listOf("Non-GP/unverified shop currency or currency item; excluded from GP calculations"))
                                 } else MoneyProfitCalculator.shop(row, snap)
                             }
                         } ?: detail.stock.map { MoneyShopEvaluation(it, null, null, null, emptyList()) }
@@ -768,7 +768,7 @@ private fun MoneyShopRow(entry: MoneyShopEvaluation) {
                 Text(entry.row.item, color = MoneyWhite, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Text("Stock ${entry.row.stock} · Restock ${entry.row.restock}",
                     color = MoneyParchment, fontSize = 10.sp)
-                val specialCurrency = entry.flags.any { it.startsWith("Special currency") }
+                val specialCurrency = entry.currencyIsUnverified()
                 Text((if (specialCurrency) "Shop (non-GP currency): " else "Shop (GP): ") +
                     (entry.row.basePurchasePrice?.let { gp(it) } ?: "unknown") +
                     (if (specialCurrency) "" else " · GE sell: " +
