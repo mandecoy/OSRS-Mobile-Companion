@@ -19,13 +19,13 @@ data class ShopCatalog(
 
 object ShopCatalogApi {
     private const val CATALOG_URL =
-        "https://raw.githubusercontent.com/mandecoy/OSRS-Mobile-Companion/main/docs/shop-catalog-v1.json"
-    private const val USER_AGENT = "OSRS-Companion-Tool/0.7.1 (https://github.com/mandecoy/OSRS-Mobile-Companion)"
-    private const val PREFS = "shop_catalog_index_v1"
+        "https://raw.githubusercontent.com/mandecoy/OSRS-Mobile-Companion/main/docs/shop-catalog-v2.json"
+    private const val USER_AGENT = "OSRS-Companion-Tool/0.7.3 (https://github.com/mandecoy/OSRS-Mobile-Companion)"
+    private const val PREFS = "shop_catalog_index_v2"
     private const val RECHECK_MS = 4L * 60L * 60L * 1000L
 
     fun load(context: Context, force: Boolean = false): ShopCatalog {
-        val file = File(context.filesDir, "shop-catalog-v1.json")
+        val file = File(context.filesDir, "shop-catalog-v2.json")
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val cached = if (file.isFile) runCatching {
             parse(file.readText(Charsets.UTF_8), isFallback = true)
@@ -49,7 +49,7 @@ object ShopCatalogApi {
                 connection.disconnect()
             }
             val catalog = parse(text)
-            val temp = File(context.filesDir, "shop-catalog-v1.tmp")
+            val temp = File(context.filesDir, "shop-catalog-v2.tmp")
             temp.writeText(text, Charsets.UTF_8)
             if (!temp.renameTo(file)) {
                 file.writeText(text, Charsets.UTF_8)
@@ -66,7 +66,7 @@ object ShopCatalogApi {
 
     internal fun parse(text: String, isFallback: Boolean = false): ShopCatalog {
         val json = JSONObject(text)
-        require(json.optInt("schema") == 1) { "Unsupported shop index format" }
+        require(json.optInt("schema") == 2) { "Unsupported shop index format" }
         val rows = json.getJSONArray("shops")
         require(rows.length() >= 400) { "Shop index is incomplete" }
         val shops = List(rows.length()) { i ->
@@ -83,11 +83,13 @@ object ShopCatalogApi {
                         else item.optLong("purchase").takeIf { it >= 0L },
                     baseBuybackPrice = if (item.isNull("buyback")) null
                         else item.optLong("buyback").takeIf { it >= 0L },
-                    shop = title
+                    shop = title,
+                    currency = item.optString("currency", "unknown")
                 )
             }
             WikiShopDetail(title, o.optString("location"),
-                o.optString("notes"), inventory)
+                o.optString("notes"), inventory,
+                currency = o.optString("currency", "unknown"))
         }
         return ShopCatalog(shops, json.optString("generatedAt"),
             json.optInt("stockedPages"), json.optInt("failedPages"), isFallback)
@@ -125,6 +127,7 @@ object ShopRankings {
     }
 
     internal fun isSpecialCurrencyShop(shop: WikiShopDetail): Boolean {
+        if (shop.currency != "coins") return true
         if (isKnownSpecialCurrencyShop(shop.title)) return true
         val notes = shop.notes.lowercase(Locale.ROOT)
         val location = shop.location.lowercase(Locale.ROOT)
@@ -152,7 +155,8 @@ object ShopRankings {
         shops.map { shop ->
             val profitable = shop.stock.asSequence()
                 .filter { !isSpecialCurrencyShop(shop) }
-                .filter { isBuyableStock(it.stock) && !isExcludedItem(it.item) }
+                .filter { isBuyableStock(it.stock) && it.currency == "coins" &&
+                    !isExcludedItem(it.item) }
                 .map { MoneyProfitCalculator.shop(it, snapshot, now) }
                 .filter { (it.netUnitProfit ?: 0L) > 0L }
                 .distinctBy { it.row.item.lowercase(Locale.ROOT) }
