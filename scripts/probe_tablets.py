@@ -24,7 +24,7 @@ for idx,table in enumerate(soup.select("table")):
             a.get("title") in ("Soft clay","Dark essence block") for a in td.find_all("a",href=True))),None)
         if material is None:continue
         names=[a.get("title") for a in material.find_all("a",href=True) if a.get("title")]
-        numbers=[int(n.replace(",","")) for n in re.findall(r"\\d[\\d,]*",material.get_text(" ",strip=True))]
+        numbers=[int(n.replace(",","")) for n in re.findall(r"\d[\d,]*",material.get_text(" ",strip=True))]
         if len(names)!=len(numbers):
             print("TABLETERROR",json.dumps({"group":group,"title":title,"names":names,"numbers":numbers}),flush=True)
             continue
