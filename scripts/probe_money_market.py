@@ -21,8 +21,12 @@ for tab in tablets:
   target=tab+" (tablet)"
   row=normalized.get(target.lower())
   if not row:
-    print("TABLET_UNMATCHED",tab,flush=True)
-  else:
+    row=normalized.get(tab.lower())
+    if row:
+      print("TABLET_RESOLVED_UNSUFFIXED",tab,row["name"],row["id"],flush=True)
+    else:
+      print("TABLET_UNMATCHED",tab,flush=True)
+  if row:
     data=latest.get(str(row["id"]),{})
     print("TABLET_RESOLVED",tab,row["name"],row["id"],data.get("high"),data.get("low"),flush=True)
 
