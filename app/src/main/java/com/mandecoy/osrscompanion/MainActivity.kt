@@ -120,6 +120,14 @@ class MainActivity : ComponentActivity() {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Permission/settings changes can cancel Android alarms while the
+        // user is outside the app. Restore any enabled local reminders when
+        // returning without changing their saved start dates or intervals.
+        GameReminderScheduler.restore(this)
+    }
 }
 
 data class WebTool(val title: String, val url: String, val subtitle: String)
