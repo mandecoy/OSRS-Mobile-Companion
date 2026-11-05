@@ -224,13 +224,16 @@ object GameReminderScheduler {
         if (GameReminderStore.nmzEnabled(context)) scheduleNmz(context)
     }
 
-    fun scheduleTears(context: Context) {
-        // Seven calendar days after activation, at the selected local time.
-        scheduleFromStart(
-            context, TEARS_REQUEST, TYPE_TEARS,
+    /** Next weekly Tears alarm, retaining the original activation day and local time. */
+    fun nextTearsAt(context: Context, now: Long = System.currentTimeMillis()): Long =
+        LocalReminderSchedule.nextTriggerMillis(
             GameReminderStore.tearsStartedAt(context), 7,
-            GameReminderStore.tearsReminderTime(context)
+            GameReminderStore.tearsReminderTime(context),
+            now, ZoneId.systemDefault()
         )
+
+    fun scheduleTears(context: Context) {
+        schedule(context, TEARS_REQUEST, TYPE_TEARS, nextTearsAt(context))
     }
 
     fun scheduleZaff(context: Context) {
@@ -240,28 +243,17 @@ object GameReminderScheduler {
         schedule(context, ZAFF_REQUEST, TYPE_ZAFF, next.toInstant().toEpochMilli())
     }
 
-    fun scheduleMiscellania(context: Context) {
-        // Preserve the 1–7-day interval and activation-date anchor.
-        scheduleFromStart(
-            context, MISC_REQUEST, TYPE_MISC,
+    /** Next Miscellania alarm using the saved 1–7 day interval, never resetting it. */
+    fun nextMiscellaniaAt(context: Context, now: Long = System.currentTimeMillis()): Long =
+        LocalReminderSchedule.nextTriggerMillis(
             GameReminderStore.miscellaniaStartedAt(context),
             GameReminderStore.miscellaniaIntervalDays(context),
-            GameReminderStore.miscellaniaReminderTime(context)
+            GameReminderStore.miscellaniaReminderTime(context),
+            now, ZoneId.systemDefault()
         )
-    }
 
-    private fun scheduleFromStart(
-        context: Context,
-        request: Int,
-        type: String,
-        startedAt: Long,
-        intervalDays: Int,
-        time: LocalTime
-    ) {
-        val next = LocalReminderSchedule.nextTriggerMillis(
-            startedAt, intervalDays, time, System.currentTimeMillis(), ZoneId.systemDefault()
-        )
-        schedule(context, request, type, next)
+    fun scheduleMiscellania(context: Context) {
+        schedule(context, MISC_REQUEST, TYPE_MISC, nextMiscellaniaAt(context))
     }
 
     fun scheduleNmz(context: Context) {
@@ -281,10 +273,19 @@ object GameReminderScheduler {
     private fun schedule(context: Context, requestCode: Int, type: String, atMillis: Long) {
         val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pending = pendingIntent(context, requestCode, type)
-        if (android.os.Build.VERSION.SDK_INT >= 31 && !manager.canScheduleExactAlarms()) {
-            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
+        // Android may revoke the exact-alarm permission (e.g. after a
+        // device/app settings change) and cancel all previously exact alarms.
+        // Never crash or silently drop recurring reminders in this case.
+        val exactAllowed = android.os.Build.VERSION.SDK_INT < 31 ||
+            manager.canScheduleExactAlarms()
+        if (exactAllowed) {
+            try {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
+            } catch (_: SecurityException) {
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
+            }
         } else {
-            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
         }
     }
 
@@ -310,40 +311,36 @@ class GameReminderReceiver : BroadcastReceiver() {
         when (intent.getStringExtra("type")) {
             GameReminderScheduler.TYPE_TEARS -> {
                 if (!GameReminderStore.tearsEnabled(context)) return
-                TimerNotifications.show(
-                    context,
-                    7301,
-                    "Tears of Guthix is ready"
-                )
+                // First queue next week's alert. Posting can be blocked by
+                // the OS/channel and must never break recurrence.
                 GameReminderScheduler.scheduleTears(context)
+                val posted = TimerNotifications.show(
+                    context, 7301, "Tears of Guthix is ready"
+                )
+                ReminderDeliveryLog.record(context, GameReminderScheduler.TYPE_TEARS, posted)
             }
             GameReminderScheduler.TYPE_ZAFF -> {
                 if (!GameReminderStore.zaffEnabled(context)) return
-                TimerNotifications.show(
-                    context,
-                    7302,
-                    "Zaff's battlestaves have reset"
-                )
                 GameReminderScheduler.scheduleZaff(context)
+                TimerNotifications.show(context, 7302, "Zaff's battlestaves have reset")
             }
             GameReminderScheduler.TYPE_MISC -> {
                 if (!GameReminderStore.miscellaniaEnabled(context)) return
-                TimerNotifications.show(
-                    context,
-                    7303,
-                    "Manage Miscellania check-in"
-                )
                 // Advance automatically; no Done action is needed.
                 GameReminderScheduler.scheduleMiscellania(context)
+                val posted = TimerNotifications.show(
+                    context, 7303, "Manage Miscellania check-in"
+                )
+                ReminderDeliveryLog.record(context, GameReminderScheduler.TYPE_MISC, posted)
             }
             GameReminderScheduler.TYPE_NMZ -> {
                 if (!GameReminderStore.nmzEnabled(context)) return
+                // Schedule the next daily UTC reset independently of
+                // the separate Miscellania and Tears reminders.
+                GameReminderScheduler.scheduleNmz(context)
                 TimerNotifications.show(
                     context, 7304, "NMZ Herb Boxes ready — collect up to 15 today"
                 )
-                // Schedule the next daily UTC reset independently of the
-                // separate Miscellania and Tears Done buttons.
-                GameReminderScheduler.scheduleNmz(context)
             }
         }
     }
@@ -503,6 +500,7 @@ fun GameRemindersCard(context: Context) {
                 Text("1 day", color = Color(0xffd7c7a4), fontSize = 11.sp)
                 Text("7 days", color = Color(0xffd7c7a4), fontSize = 11.sp)
             }
+            ReminderHealthPanel(context, tearsEnabled, miscellaniaEnabled, miscellaniaDays)
         }
     }
 }
