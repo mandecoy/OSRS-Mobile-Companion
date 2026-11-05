@@ -86,10 +86,15 @@ object TimerScheduler {
     fun schedule(context: Context, timer: TimerEntry) {
         val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pending = pendingIntent(context, timer)
-        if (Build.VERSION.SDK_INT >= 31 && !manager.canScheduleExactAlarms()) {
-            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timer.endAtMillis, pending)
+        val exactAllowed = Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()
+        if (exactAllowed) {
+            try {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timer.endAtMillis, pending)
+            } catch (_: SecurityException) {
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timer.endAtMillis, pending)
+            }
         } else {
-            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timer.endAtMillis, pending)
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timer.endAtMillis, pending)
         }
     }
 
