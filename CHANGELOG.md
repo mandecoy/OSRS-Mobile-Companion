@@ -2,6 +2,18 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.6
+
+### Recurring Tears of Guthix and Miscellania notification recovery
+- Restore stored game reminder alarms automatically when Android reports an app-package update or grants precise-alarm special access; rearm enabled alarms when returning to the app and after boots or clock changes.
+- Do **not** reset either activity's activation date, the selected reminder times, or Miscellania's existing 1–7 day interval during recovery.
+- Fall back to inexact, Doze-aware alarms if exact-alarm access is unavailable or revoked during a scheduling attempt.
+- Reschedule the next recurring Tears/Miscellania occurrence before posting the current notification, so a blocked notification does not break future recurrence.
+- Detect denied Android notification permission, disabled app notifications and muted OSRS Timers channel instead of silently claiming notifications work.
+- Add a reminder status panel with next scheduled dates, the last fired/post-to-Android attempt, **Repair schedules** and **Test notification** buttons, plus direct links to settings.
+- Include instructions for Android's battery restrictions, which can delay or prevent alarms when the app is deeply sleeping or force-stopped.
+- Add recurrence tests for weekly Tears, Miscellania 3/7-day cycles, delayed delivery and daylight-saving transitions.
+
 ## 0.7.5
 
 ### Correct tablet prices and shop liquidity
