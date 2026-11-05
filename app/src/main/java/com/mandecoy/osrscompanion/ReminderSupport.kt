@@ -500,7 +500,8 @@ fun GameRemindersCard(context: Context) {
                 Text("1 day", color = Color(0xffd7c7a4), fontSize = 11.sp)
                 Text("7 days", color = Color(0xffd7c7a4), fontSize = 11.sp)
             }
-            ReminderHealthPanel(context, tearsEnabled, miscellaniaEnabled, miscellaniaDays)
+            ReminderHealthPanel(context, tearsEnabled, miscellaniaEnabled, miscellaniaDays,
+                tearsTime, miscellaniaTime)
         }
     }
 }
