@@ -129,8 +129,29 @@ object TimerNotifications {
         }
     }
 
-    fun show(context: Context, id: Int, label: String) {
+    /** The app and the OSRS Timers notification channel must both be enabled. */
+    fun blockedReason(context: Context): String? {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return "Android notification permission is off"
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            return "App notifications are turned off"
+        }
+        if (Build.VERSION.SDK_INT >= 26) {
+            val channel = context.getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(CHANNEL)
+            if (channel?.importance == NotificationManager.IMPORTANCE_NONE) {
+                return "The OSRS Timers notification channel is muted"
+            }
+        }
+        return null
+    }
+
+    /** True only when Android accepts the notification, not proof that it was seen. */
+    fun show(context: Context, id: Int, label: String): Boolean {
         ensureChannel(context)
+        if (blockedReason(context) != null) return false
         val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
         val contentIntent = launch?.let {
             PendingIntent.getActivity(
@@ -151,13 +172,11 @@ object TimerNotifications {
             .setContentIntent(contentIntent)
             .build()
 
-        if (Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
+        return try {
             NotificationManagerCompat.from(context).notify(id, notification)
+            true
+        } catch (_: SecurityException) {
+            false
         }
     }
 }
@@ -173,18 +192,24 @@ class TimerAlarmReceiver : BroadcastReceiver() {
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (
-            intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED
-        ) {
-            TimerStore.active(context).forEach { TimerScheduler.schedule(context, it) }
-            GameReminderScheduler.restore(context)
-        } else if (
-            intent.action == Intent.ACTION_TIMEZONE_CHANGED ||
-            intent.action == Intent.ACTION_TIME_CHANGED
-        ) {
-            // Honor the user's chosen local time after a time-zone/clock change.
-            GameReminderScheduler.restore(context)
+        when (intent.action) {
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_LOCKED_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            Intent.ACTION_TIME_CHANGED -> {
+                // Android may remove pending alarms after a reboot, package
+                // update or clock change. Re-arm from the locally saved data.
+                TimerStore.active(context).forEach { TimerScheduler.schedule(context, it) }
+                GameReminderScheduler.restore(context)
+            }
+            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> {
+                val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) {
+                    TimerStore.active(context).forEach { TimerScheduler.schedule(context, it) }
+                    GameReminderScheduler.restore(context)
+                }
+            }
         }
     }
 }
