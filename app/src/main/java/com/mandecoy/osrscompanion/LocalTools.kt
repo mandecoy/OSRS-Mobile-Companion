@@ -579,40 +579,5 @@ fun FairyRingDirectoryScreen(nav: NavHostController) {
 
 @Composable
 fun PersistentNotepadScreen(nav: NavHostController) {
-    val context = LocalContext.current
-    val prefs = remember {
-        context.getSharedPreferences("persistent_notepad_v1", Context.MODE_PRIVATE)
-    }
-    var note by remember { mutableStateOf(prefs.getString("note", "") ?: "") }
-
-    Screen(nav, "Persistent Notepad") { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                "Saved automatically on this device.",
-                color = LocalParchment,
-                fontSize = 12.sp
-            )
-            OutlinedTextField(
-                value = note,
-                onValueChange = {
-                    note = it
-                    prefs.edit().putString("note", it).apply()
-                },
-                label = { Text("Notes") },
-                modifier = Modifier.fillMaxWidth().weight(1f)
-            )
-            TextButton(
-                onClick = {
-                    note = ""
-                    prefs.edit().remove("note").apply()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Clear notes", color = LocalGold)
-            }
-        }
-    }
+    TitledNotepadScreen(nav)
 }
