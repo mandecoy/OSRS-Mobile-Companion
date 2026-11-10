@@ -162,7 +162,7 @@ private val Tools = listOf(
     Tool("High Alch", "Live profitable alchs", "high_alch", osrsWikiImage("High_Level_Alchemy.png")),
     Tool("Portfolio", "Flips + watchlist + alerts", "portfolio", osrsWikiImage("Platinum_token.png")),
     Tool("Fairy Rings", "Code + location directory", "fairy_rings", osrsWikiImage("Fairy_ring.png")),
-    Tool("Notepad", "Persistent local notes", "notepad", osrsWikiImage("Spell_scroll.png")),
+    Tool("Notepad", "Multiple titled notes, saved locally", "notepad", osrsWikiImage("Spell_scroll.png")),
     Tool("Puzzle Box", "Screenshot solver", "puzzle", osrsWikiImage("Puzzle_box_zulrah.png")),
     Tool("Light Box", "Master clue solver", "lightbox", osrsWikiImage("Light_box.png")),
     Tool("GE Prices", "RuneScape Wiki prices", "web/prices", osrsWikiImage("Coins_10000.png")),
