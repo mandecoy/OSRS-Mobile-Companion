@@ -2,6 +2,16 @@
 
 All notable changes to OSRS Companion Tool are documented here.
 
+## 0.7.7
+
+### Titled Notepad sections and keyboard-safe editor
+- Upgrade the single persistent note into multiple individually named note sections, presented as horizontal tabs. Add notes, rename their titles, switch between notes and edit each note independently.
+- Keep every note saved locally as JSON in SharedPreferences, including the selected tab so returning to Notepad opens where you left off.
+- Import the previous single note verbatim into a **My Notes** section on first launch. Leave the original v1 value as an untouched backup; never repeatedly import a note after its intentional deletion.
+- Prompt before deleting a note and leave every other note untouched.
+- Respect Android's resize-on-keyboard setting and apply IME-aware screen padding. The flexible multiline editor shrinks to the remaining visible height and scrolls its caret when the keyboard opens, avoiding covered text on Samsung keyboards.
+- Add pure unit tests for legacy migration, multiple note isolation, title editing, selection, deletion, and unique IDs.
+
 ## 0.7.6
 
 ### Recurring Tears of Guthix and Miscellania notification recovery
